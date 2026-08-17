@@ -1,0 +1,58 @@
+# Copy this to wrangler.toml and fill in the four marked values.
+#
+#   cp wrangler.toml.example wrangler.toml
+#
+# wrangler.toml is gitignored because it carries your team domain, your Access
+# application's AUD tag, your hostname and the real addresses of everyone
+# allowed to send. None of those are secrets in the cryptographic sense — you
+# cannot forge a token with an AUD tag — but they identify your setup, and the
+# sender list is other people's email addresses.
+#
+# Full walkthrough of where each value comes from: DEPLOY.md.
+
+name = "cf-mailbox"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# Load-bearing. A live *.workers.dev route is a second hostname that your Access
+# application does not cover, which would publish the mailbox to the internet.
+workers_dev = false
+
+# Lets `import UI from './ui.html'` bundle the client as a string — no build step.
+rules = [
+  { type = "Text", globs = ["**/*.html"], fallthrough = true }
+]
+
+[[durable_objects.bindings]]
+name = "MAILBOX"
+class_name = "Mailbox"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Mailbox"]
+
+[vars]
+# ---------------------------------------------------------------------- FILL IN
+# Zero Trust > Settings > General > Team domain. Bare hostname: no scheme, no
+# trailing slash.
+ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
+
+# Zero Trust > Access > Applications > your app > Overview >
+# "Application Audience (AUD) Tag". A long hex string.
+ACCESS_AUD = "REPLACE_WITH_APPLICATION_AUDIENCE_TAG"
+
+# Comma-separated. A bare entry matches the domain and its subdomains
+# (netflix.com also matches mail.netflix.com); an entry containing @ must match
+# the full address. Everything else is dropped without a bounce.
+#
+# Careful with public mail providers. Listing `gmail.com` here does not mean
+# "my friends' Gmail accounts" — it means *anybody with a Gmail account* can put
+# mail in this box. Prefer the specific addresses.
+ALLOWED_SENDERS = "netflix.com,spotify.com,no-reply@github.com"
+
+# The hostname people visit. custom_domain = true means the Worker *is* the
+# origin: Cloudflare creates the DNS record and certificate for you, so do not
+# add one by hand. Must match the hostname of your Access application exactly.
+[[routes]]
+pattern = "mailbox.example.com"
+custom_domain = true

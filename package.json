@@ -1,0 +1,25 @@
+{
+  "name": "cf-mailbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-holder shared email box on Cloudflare Workers, Durable Objects and Email Routing",
+  "scripts": {
+    "dev": "wrangler dev -c wrangler.preview.toml",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit && vitest run && wrangler deploy --dry-run",
+    "preview": "wrangler dev -c wrangler.preview.toml"
+  },
+  "dependencies": {
+    "postal-mime": "^2.4.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "@cloudflare/workers-types": "^5.20260811.1",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.0.0"
+  }
+}

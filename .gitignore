@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------- your config
+# Holds your Zero Trust team domain, the Access AUD tag, your hostname and the
+# real addresses of everyone allowed to send. Copy the template instead:
+#
+#   cp wrangler.toml.example wrangler.toml
+#
+wrangler.toml
+
+# ------------------------------------------------------------------ local state
+# Wrangler keeps the preview Durable Object's SQLite here — which means the
+# actual bodies of every message you delivered while previewing. Never commit it.
+.wrangler/
+dist/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+
+# ----------------------------------------------------------------- dependencies
+node_modules/
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# ------------------------------------------------------------------ editors, OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

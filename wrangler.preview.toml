@@ -1,0 +1,29 @@
+# Local preview only. Never passed to `wrangler deploy`.
+#
+# A separate file rather than an [env.preview] block in wrangler.toml, so the
+# Access bypass in src/preview.ts has no path into a production deploy.
+#
+#   npm run preview     ->  http://localhost:8787/_dev
+
+name = "cf-mailbox-preview"
+main = "src/preview.ts"
+compatibility_date = "2026-08-01"
+workers_dev = false
+
+rules = [
+  { type = "Text", globs = ["**/*.html"], fallthrough = true }
+]
+
+[[durable_objects.bindings]]
+name = "MAILBOX"
+class_name = "Mailbox"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Mailbox"]
+
+# Never read: preview skips Access entirely. Present only to satisfy the Env type.
+[vars]
+ACCESS_TEAM_DOMAIN = "preview.invalid"
+ACCESS_AUD = "preview"
+ALLOWED_SENDERS = "netflix.com,spotify.com,github.com"

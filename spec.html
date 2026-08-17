@@ -1,0 +1,932 @@
+<title>CF Mailbox</title>
+<style>
+  :root {
+    --bg:        #F6F8F7;
+    --surface:   #FFFFFF;
+    --surface-2: #EBF0EE;
+    --ink:       #14201D;
+    --ink-2:     #46564F;
+    --ink-3:     #7B8A83;
+    --rule:      #D5DEDA;
+    --rule-soft: #E4EAE7;
+    --accent:    #0C6E66;
+    --accent-2:  #E6F1EF;
+    --warn:      #8F5400;
+    --warn-bg:   #FCF1DE;
+    --crit:      #983139;
+    --crit-bg:   #FAEBEB;
+    --ok:        #2B6845;
+    --ok-bg:     #E7F1EA;
+
+    --serif: ui-serif, "New York", Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --bleed: 3.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0D1514;
+      --surface:   #131E1D;
+      --surface-2: #1A2726;
+      --ink:       #E3ECE9;
+      --ink-2:     #A4B6B0;
+      --ink-3:     #71847D;
+      --rule:      #263734;
+      --rule-soft: #1D2C2A;
+      --accent:    #5CC8BC;
+      --accent-2:  #133330;
+      --warn:      #DFA754;
+      --warn-bg:   #2C2315;
+      --crit:      #E48A90;
+      --crit-bg:   #2E191B;
+      --ok:        #6FBF8E;
+      --ok-bg:     #16291F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0D1514;
+    --surface:   #131E1D;
+    --surface-2: #1A2726;
+    --ink:       #E3ECE9;
+    --ink-2:     #A4B6B0;
+    --ink-3:     #71847D;
+    --rule:      #263734;
+    --rule-soft: #1D2C2A;
+    --accent:    #5CC8BC;
+    --accent-2:  #133330;
+    --warn:      #DFA754;
+    --warn-bg:   #2C2315;
+    --crit:      #E48A90;
+    --crit-bg:   #2E191B;
+    --ok:        #6FBF8E;
+    --ok-bg:     #16291F;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: calc(var(--measure) + var(--bleed) * 2 + 6rem);
+    margin: 0 auto;
+    padding: 4rem 1.5rem 7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-bottom: 2.25rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.4rem, 6vw, 3.6rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 52ch;
+    margin: 0;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-3);
+  }
+  .meta-row b { color: var(--ink-2); font-weight: 500; }
+
+  /* ---------- contents ---------- */
+
+  .contents {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 0.15rem 2rem;
+  }
+  .contents a {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.3rem 0;
+    color: var(--ink-2);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 0.9rem;
+  }
+  .contents a:hover { color: var(--accent); }
+  .contents a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .contents .n {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    padding-top: 0.16em;
+  }
+
+  /* ---------- sections ---------- */
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    scroll-margin-top: 2rem;
+  }
+  section > h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.85rem;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    margin: 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    text-wrap: balance;
+    display: flex;
+    gap: 0.9rem;
+    align-items: baseline;
+  }
+  section > h2 .n {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    flex: none;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 620;
+    font-size: 0.82rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 0.9rem 0 0;
+  }
+  p { margin: 0; max-width: var(--measure); }
+  ul, ol { margin: 0; padding-left: 1.2rem; max-width: var(--measure); display: flex; flex-direction: column; gap: 0.4rem; }
+  li::marker { color: var(--ink-3); }
+  strong { font-weight: 620; }
+  a { color: var(--accent); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.855em;
+    background: var(--surface-2);
+    padding: 0.1em 0.36em;
+    border-radius: 3px;
+  }
+
+  pre {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem;
+    overflow-x: auto;
+    max-width: calc(var(--measure) + var(--bleed));
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+    white-space: pre;
+  }
+  pre code b { color: var(--ink); font-weight: 600; }
+  pre code i { color: var(--ink-3); font-style: normal; }
+
+  /* ---------- state-kind markers ---------- */
+
+  .kind {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.18rem 0.5rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .kind::before {
+    content: "";
+    width: 7px; height: 7px;
+    flex: none;
+  }
+  .kind.persisted {
+    color: var(--accent);
+    background: var(--accent-2);
+  }
+  .kind.persisted::before { background: var(--accent); }
+  .kind.derived {
+    color: var(--ink-2);
+    background: var(--surface-2);
+  }
+  .kind.derived::before { border: 1.5px dashed var(--ink-3); }
+
+  .kind-key { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center; }
+  .kind-key span.note { font-size: 0.82rem; color: var(--ink-3); }
+
+  /* ---------- tables ---------- */
+
+  .table-wrap { overflow-x: auto; max-width: calc(var(--measure) + var(--bleed)); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
+    min-width: 32rem;
+  }
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: 0 0.9rem 0.5rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: bottom;
+  }
+  td {
+    padding: 0.55rem 0.9rem 0.55rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+  td:first-child { color: var(--ink); }
+  th:last-child, td:last-child { padding-right: 0; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); white-space: nowrap; }
+  table code { background: none; padding: 0; color: var(--ink); }
+
+  /* ---------- callouts ---------- */
+
+  .note-box {
+    border-radius: 4px;
+    padding: 0.95rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    max-width: calc(var(--measure) + 2.3rem);
+    font-size: 0.94rem;
+  }
+  .note-box .label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  .note-box p { max-width: none; }
+  .note-box.warn { background: var(--warn-bg); color: var(--ink-2); }
+  .note-box.warn .label { color: var(--warn); }
+  .note-box.crit { background: var(--crit-bg); color: var(--ink-2); }
+  .note-box.crit .label { color: var(--crit); }
+  .note-box.ok { background: var(--ok-bg); color: var(--ink-2); }
+  .note-box.ok .label { color: var(--ok); }
+
+  /* ---------- diagram ---------- */
+
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.5rem 1rem;
+    overflow-x: auto;
+    max-width: calc(var(--measure) + var(--bleed));
+  }
+  .diagram svg { display: block; width: 100%; min-width: 34rem; height: auto; }
+  .cap {
+    font-size: 0.8rem;
+    color: var(--ink-3);
+    max-width: var(--measure);
+  }
+
+  /* ---------- checklist ---------- */
+
+  .check { list-style: none; padding: 0; gap: 0; }
+  .check li {
+    display: flex;
+    gap: 0.85rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+    align-items: flex-start;
+  }
+  .check li::before {
+    content: "";
+    width: 0.85rem; height: 0.85rem;
+    flex: none;
+    margin-top: 0.4em;
+    border: 1.5px solid var(--accent);
+    border-radius: 2px;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+  @media (max-width: 620px) {
+    .page { padding: 2.5rem 1.1rem 4rem; gap: 2.5rem; }
+    body { font-size: 16px; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Design specification · v8</div>
+    <h1>CF Mailbox</h1>
+    <p class="standfirst">A shared inbox for one friend group's temporary login codes. One person holds it at a time; the mail they receive belongs to them.</p>
+    <div class="meta-row">
+      <span><b>Runtime</b> Cloudflare Workers · Durable Objects (SQLite) · Email Routing</span>
+      <span><b>Perimeter</b> Cloudflare Access</span>
+      <span><b>Scale</b> ~5–15 people, one mailbox</span>
+    </div>
+  </header>
+
+  <nav class="contents" aria-label="Contents">
+    <a href="#s1"><span class="n">01</span> What this is</a>
+    <a href="#s2"><span class="n">02</span> Architecture</a>
+    <a href="#s3"><span class="n">03</span> Identity and access</a>
+    <a href="#s4"><span class="n">04</span> State model</a>
+    <a href="#s5"><span class="n">05</span> Constants</a>
+    <a href="#s6"><span class="n">06</span> Lock lifecycle</a>
+    <a href="#s7"><span class="n">07</span> Mail intake and ownership</a>
+    <a href="#s8"><span class="n">08</span> Subject masking</a>
+    <a href="#s9"><span class="n">09</span> WebSocket protocol</a>
+    <a href="#s10"><span class="n">10</span> Client behaviour</a>
+    <a href="#s11"><span class="n">11</span> Security checklist</a>
+    <a href="#s12"><span class="n">12</span> Configuration</a>
+    <a href="#s13"><span class="n">13</span> Decided against</a>
+  </nav>
+
+  <section id="s1">
+    <h2><span class="n">01</span> What this is</h2>
+    <p>A group of friends share a handful of online accounts. Those accounts send verification codes to one address. This is the web app that receives them.</p>
+    <p>Two problems follow from sharing an address, and the design addresses them separately:</p>
+    <ul>
+      <li><strong>Collision.</strong> Two people signing in at once can't tell whose code is whose. Solved by a <em>lock</em> — one holder at a time, with a queue.</li>
+      <li><strong>Exposure.</strong> A shared inbox shows everyone every code. Solved by <em>ownership</em> — each message is attributed to the person who held the box when it arrived, and only they can read the body.</li>
+    </ul>
+    <p>Everyone can see that a message arrived, from whom, and who owns it. That transparency is deliberate: it means nobody can quietly reset the password on a shared account.</p>
+    <div class="note-box warn">
+      <span class="label">Threat model</span>
+      <p>This protects against <em>accidental</em> oversharing between people who trust each other, and it produces an audit trail. It does not defend against a malicious member — anyone in the Access policy can take the lock and trigger a password reset whenever they like. The Access policy membership list is the real security boundary. Keep it short.</p>
+    </div>
+  </section>
+
+  <section id="s2">
+    <h2><span class="n">02</span> Architecture</h2>
+    <p>One Worker, one Durable Object instance, two entry paths. The DO is addressed as <code>idFromName("mailbox")</code> — a single global instance, which is what makes the lock correct without any locking code. Durable Object execution is serialised, so read-check-write on lock state cannot interleave.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 880 300" role="img" aria-label="Browsers and inbound email both reach one Worker, which forwards to a single Durable Object holding sockets, a lock ledger, and a messages table.">
+        <defs>
+          <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--ink-3)"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
+
+          <rect x="8" y="34" width="176" height="60" rx="4" fill="var(--surface-2)" stroke="var(--rule)"/>
+          <text x="24" y="60" fill="var(--ink)" font-size="13">Browser tabs</text>
+          <text x="24" y="78" fill="var(--ink-3)">behind CF Access</text>
+
+          <rect x="8" y="196" width="176" height="60" rx="4" fill="var(--surface-2)" stroke="var(--rule)"/>
+          <text x="24" y="222" fill="var(--ink)" font-size="13">Inbound email</text>
+          <text x="24" y="240" fill="var(--ink-3)">CF Email Routing</text>
+
+          <rect x="272" y="34" width="150" height="222" rx="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="290" y="60" fill="var(--ink)" font-size="13">Worker</text>
+          <text x="290" y="86" fill="var(--ink-3)">fetch()</text>
+          <text x="290" y="104" fill="var(--ink-3)">· serve UI</text>
+          <text x="290" y="122" fill="var(--ink-3)">· verify JWT</text>
+          <text x="290" y="140" fill="var(--ink-3)">· WS upgrade</text>
+          <text x="290" y="176" fill="var(--ink-3)">email()</text>
+          <text x="290" y="194" fill="var(--ink-3)">· allow-list</text>
+          <text x="290" y="212" fill="var(--ink-3)">· parse + trim</text>
+
+          <rect x="512" y="18" width="352" height="254" rx="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="532" y="44" fill="var(--ink)" font-size="13">Durable Object &#8220;mailbox&#8221;</text>
+
+          <rect x="532" y="62" width="312" height="58" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-dasharray="3 3"/>
+          <text x="548" y="86" fill="var(--ink)">Hibernating WebSockets</text>
+          <text x="548" y="104" fill="var(--ink-3)">presence &#8212; source of truth</text>
+
+          <rect x="532" y="130" width="312" height="58" rx="3" fill="var(--accent-2)" stroke="var(--accent)"/>
+          <text x="548" y="154" fill="var(--ink)">Lock ledger + participants</text>
+          <text x="548" y="172" fill="var(--ink-3)">storage KV &#8212; ordering, timing</text>
+
+          <rect x="532" y="198" width="312" height="58" rx="3" fill="var(--accent-2)" stroke="var(--accent)"/>
+          <text x="548" y="222" fill="var(--ink)">messages table</text>
+          <text x="548" y="240" fill="var(--ink-3)">SQLite &#8212; ring buffer, 100 rows</text>
+
+          <line x1="188" y1="64" x2="266" y2="64" stroke="var(--ink-3)" marker-end="url(#arw)"/>
+          <text x="196" y="54" fill="var(--ink-3)" font-size="10">wss://</text>
+          <line x1="188" y1="226" x2="266" y2="226" stroke="var(--ink-3)" marker-end="url(#arw)"/>
+          <line x1="426" y1="145" x2="506" y2="145" stroke="var(--ink-3)" marker-end="url(#arw)"/>
+          <text x="434" y="135" fill="var(--ink-3)" font-size="10">stub.fetch</text>
+        </g>
+      </svg>
+    </div>
+    <p class="cap">Both entry paths converge on the same DO instance, so mail arrival and lock changes are ordered against each other by the runtime rather than by application code.</p>
+
+    <h3>Why WebSockets rather than polling</h3>
+    <p>With <a href="https://developers.cloudflare.com/durable-objects/best-practices/websockets/">WebSocket Hibernation</a>, <code>ctx.getWebSockets()</code> survives the DO being evicted from memory. That gives the central property of this design: <strong>a socket closing removes a participant, so there is no code path that leaves the lock held by someone who isn't connected.</strong> The classic stale-lock bug doesn't exist here, because "who holds the lock" is never stored as a fact that has to be kept true.</p>
+    <p>It also removes the need for an application heartbeat. Use <code>ctx.setWebSocketAutoResponse()</code> for ping/pong — the edge answers without waking the DO, so keep-alive costs nothing.</p>
+  </section>
+
+  <section id="s3">
+    <h2><span class="n">03</span> Identity and access</h2>
+    <p>Identity is the <code>email</code> claim of the Cloudflare Access JWT. Never a client-supplied name — if the browser can assert who it is, anyone can steal or release the lock.</p>
+    <ol>
+      <li>Access application covers the <strong>entire hostname</strong>, including <code>/api/*</code> and the WebSocket upgrade path.</li>
+      <li>Set <code>workers_dev = false</code>. A live <code>*.workers.dev</code> route bypasses Access completely and hands out the mailbox to the internet.</li>
+      <li>The Worker independently verifies the <code>Cf-Access-Jwt-Assertion</code> header against the team JWKS at <code>https://&lt;team&gt;.cloudflareaccess.com/cdn-cgi/access/certs</code>, checking signature, <code>exp</code>, and that <code>aud</code> equals the application's AUD tag. Cache the JWKS in memory.</li>
+    </ol>
+    <p>Step 3 is not redundant with step 1. It is defence in depth against a route that accidentally escapes the Access application.</p>
+
+    <h3>Token expiry mid-session</h3>
+    <p>The upgrade is authenticated once, but a socket can outlive the token. Store <code>exp</code> in the socket attachment; on any event, if <code>now &gt; exp</code>, send <code>{"t":"bye","reason":"token_expired"}</code> and close. The client reconnects, passes through Access again, and — inside the reconnect grace window — keeps its queue position.</p>
+  </section>
+
+  <section id="s4">
+    <h2><span class="n">04</span> State model</h2>
+    <p>The distinction that organises everything below: <em>presence</em> is derived from live sockets and never stored; <em>ordering and timing</em> are stored because they must outlast a hibernation cycle.</p>
+    <div class="kind-key">
+      <span class="kind persisted">Persisted</span>
+      <span class="kind derived">Derived</span>
+      <span class="note">Derived values are recomputed on every event. Never cache them across an await.</span>
+    </div>
+
+    <h3><span class="kind persisted">Persisted</span> &nbsp;Storage keys</h3>
+    <pre><code><b>seq</b>          <i>// number — monotonic counter, only ever incremented</i>
+
+<b>participants</b> <i>// one small object, keyed by email</i>
+{
+  "alice@example.com": {
+    seq:        41,      <i>// queue order, ascending = earlier</i>
+    wants:      true,    <i>// clicked Request access</i>
+    lastSeenAt: 0        <i>// ms; set when their socket count hits zero</i>
+  },
+  ...
+}
+
+<b>lock</b>         <i>// transition ledger — a record of *when*, not of *who currently*</i>
+{
+  holder:     "alice@example.com" | null,
+  acquiredAt: 1755300000000,
+  prev:       { email: "bob@example.com", releasedAt: 1755299900000 } | null
+}</code></pre>
+    <p><code>lock</code> is a cache of the derived holder plus the timestamps of the last handover. It exists solely so §07 can attribute a message that lands during a handoff. It is rewritten whenever recompute detects the holder changed — it is never read to decide who the holder is.</p>
+
+    <h3><span class="kind derived">Derived</span> &nbsp;Per-socket, from the hibernation API</h3>
+    <pre><code><i>// at accept time</i>
+ctx.acceptWebSocket(server, [ `u:${email}` ])   <i>// tag → ctx.getWebSockets(`u:${email}`)</i>
+ws.serializeAttachment({ email, connId, connectedAt, exp })
+
+<i>// anywhere, after hibernation</i>
+const liveEmails = new Set(
+  ctx.getWebSockets().map(ws => ws.deserializeAttachment().email)
+)</code></pre>
+    <p>Tags are fixed at accept time, which suits us — a socket's email never changes. Grouping by email is what makes <strong>multi-tab work for free</strong>: three tabs from one person are three sockets, one participant, one queue position.</p>
+
+    <h3><span class="kind persisted">Persisted</span> &nbsp;SQL schema</h3>
+    <pre><code>CREATE TABLE IF NOT EXISTS messages (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  received_at    INTEGER NOT NULL,
+  from_addr      TEXT    NOT NULL,
+  to_addr        TEXT    NOT NULL,
+  from_name      TEXT    NOT NULL DEFAULT '',   <i>// display name, if the sender set one</i>
+  subject        TEXT    NOT NULL DEFAULT '',   <i>// raw — owner only</i>
+  subject_masked TEXT    NOT NULL DEFAULT '',   <i>// §08 — everyone else</i>
+  body_text      TEXT    NOT NULL DEFAULT '',   <i>// plaintext, truncated</i>
+  body_html      TEXT    NOT NULL DEFAULT '',   <i>// sanitised, remote resources gone</i>
+  owner          TEXT,                          <i>// immutable; NULL = shared with everyone</i>
+  auth_pass      INTEGER NOT NULL DEFAULT 0     <i>// SPF/DKIM/DMARC all passed</i>
+);
+CREATE INDEX IF NOT EXISTS idx_messages_at ON messages(received_at DESC);</code></pre>
+    <p>Ring buffer trim runs after each insert. Delete by rank, not by <code>id &gt; max - 100</code> — autoincrement leaves gaps and the arithmetic form silently deletes the wrong rows:</p>
+    <pre><code>DELETE FROM messages
+WHERE id NOT IN (SELECT id FROM messages ORDER BY id DESC LIMIT 100);</code></pre>
+  </section>
+
+  <section id="s5">
+    <h2><span class="n">05</span> Constants</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th class="num">Value</th><th>Governs</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>QUEUE_PRESSURE_MS</code></td><td class="num">180 000</td><td>Eviction clock, started when the queue becomes non-empty. Doubles as the liveness backstop for a zombie connection.</td></tr>
+          <tr><td><code>WARN_AT_MS</code></td><td class="num">30 000</td><td>Remaining time at which the holder's UI warns them.</td></tr>
+          <tr><td><code>RECONNECT_GRACE_MS</code></td><td class="num">30 000</td><td>How long a participant with zero sockets keeps their queue position. Makes a page refresh free.</td></tr>
+          <tr><td><code>HANDOFF_GRACE_MS</code></td><td class="num">30 000</td><td>Window after a handover in which arriving mail is credited to the outgoing holder (§07).</td></tr>
+          <tr><td><code>RING_CAPACITY</code></td><td class="num">100</td><td>Messages retained. The archive is the ring buffer.</td></tr>
+          <tr><td><code>BODY_MAX_BYTES</code></td><td class="num">8 192</td><td>Plaintext kept per message.</td></tr>
+          <tr><td><code>HTML_MAX_BYTES</code></td><td class="num">262 144</td><td>Sanitised HTML kept per message. 100 × 256 KB is ~25 MB worst case.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="s6">
+    <h2><span class="n">06</span> Lock lifecycle</h2>
+    <p>One function computes the whole world. Call it at the end of every event — connect, close, request, release, alarm — then broadcast.</p>
+
+    <h3>recompute(now)</h3>
+    <pre><code>live = { emails with &#8805;1 socket in ctx.getWebSockets() }
+
+<i>// 1. purge participants who are gone and past their grace</i>
+for (email, p) of participants:
+    if !live.has(email) &amp;&amp; now &gt; p.lastSeenAt + RECONNECT_GRACE_MS:
+        delete participants[email]
+
+<i>// 2. the lock and queue are just a sort</i>
+wanters = participants.filter(p =&gt; p.wants).sortBy(p =&gt; p.seq)
+holder  = wanters[0] ?? null
+queue   = wanters.slice(1)
+
+<i>// 3. record the transition, if any</i>
+if (holder?.email !== lock.holder):
+    if (lock.holder) lock.prev = { email: lock.holder, releasedAt: now }
+    lock.holder     = holder?.email ?? null
+    lock.acquiredAt = now
+
+<i>// 4. queue pressure</i>
+if (holder &amp;&amp; queue.length &gt; 0):
+    if (!deadline || deadline.email !== holder.email):
+        deadline = { email: holder.email, expiresAt: now + QUEUE_PRESSURE_MS }
+else:
+    deadline = null
+
+<i>// 5. wake for whichever comes first</i>
+setAlarm(min(deadline?.expiresAt, graceExpiryOfAbsentHolder))</code></pre>
+
+    <div class="note-box ok">
+      <span class="label">Why this is small</span>
+      <p>There is no acquire path and no release path. Requesting access sets a boolean; the sort decides the rest. The holder is <code>wanters[0]</code> and always has been.</p>
+    </div>
+
+    <h3>Event handlers</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Event</th><th>Action before recompute</th></tr></thead>
+        <tbody>
+          <tr><td>WS accept</td><td>If <code>participants[email]</code> is absent, create it with <code>seq = ++seq</code>, <code>wants = false</code>. If present, leave <code>seq</code> untouched — this is what preserves position across a refresh.</td></tr>
+          <tr><td><code>request</code></td><td><code>wants = true</code>. If this is a first-time request, the existing <code>seq</code> already fixes fair order by arrival.</td></tr>
+          <tr><td><code>release</code></td><td><code>wants = false</code>. Valid whether holding or queued.</td></tr>
+          <tr><td><code>webSocketClose</code> / <code>webSocketError</code></td><td>If this was the participant's last socket, set <code>lastSeenAt = now</code>.</td></tr>
+          <tr><td><code>alarm</code></td><td>If <code>deadline</code> has expired and <code>lock.holder === deadline.email</code>: set that participant's <code>wants = false</code>, clear <code>deadline</code>, and send them <code>{"t":"evict"}</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Eviction sets <code>wants = false</code> rather than moving the evicted user to the back of the queue. With two active people, auto-requeue rotates the box between them every three minutes forever, whether or not either is using it. Re-requesting is one click, and it lands them at the back because their <code>seq</code> is stale relative to whoever joined since.</p>
+
+    <div class="note-box warn">
+      <span class="label">Concurrency</span>
+      <p>Read <code>participants</code> and <code>lock</code>, mutate, write — with no <code>await</code> on anything external in between. Durable Object input gating protects storage operations, but an <code>await fetch()</code> in the middle of a read-modify-write still opens a window for interleaving.</p>
+    </div>
+
+    <h3>What happens without a queue</h3>
+    <p>Nothing. An idle holder with a tab open keeps the box indefinitely, and that is correct — the cost of holding is zero while nobody wants it. The moment someone requests access, the three-minute clock starts. There is deliberately no maximum session length.</p>
+  </section>
+
+  <section id="s7">
+    <h2><span class="n">07</span> Mail intake and ownership</h2>
+
+    <h3>Worker email() handler</h3>
+    <ol>
+      <li>Reject if <code>message.from</code> is not on <code>ALLOWED_SENDERS</code>. Drop silently; do not bounce, which would confirm the address exists.</li>
+      <li>Read <code>Authentication-Results</code> from the headers. <code>auth_pass = 1</code> only if SPF, DKIM and DMARC all pass.</li>
+      <li>Extract plaintext (prefer <code>text/plain</code>; strip tags from <code>text/html</code> if that's all there is), truncate to <code>BODY_MAX_BYTES</code>.</li>
+      <li>Sanitise the HTML part (below) and truncate to <code>HTML_MAX_BYTES</code>.</li>
+      <li>Compute <code>subject_masked</code> (§08).</li>
+      <li>Forward to the DO stub for attribution and insert.</li>
+    </ol>
+
+    <h3>The attribution problem</h3>
+    <p>Ownership is assigned when a message <em>arrives</em>, but the act that caused it happened earlier — typically 2–30 seconds, occasionally minutes. The eviction mechanism makes this worse rather than better:</p>
+    <div class="note-box crit">
+      <span class="label">The race being solved</span>
+      <p>Alice holds the box and clicks "send me a code". Bob queues. Alice's three minutes expire and Bob becomes holder. Alice's code arrives five seconds later. Under naive attribution, <strong>Bob owns Alice's code and can read it</strong> — precisely the leak ownership exists to prevent.</p>
+    </div>
+
+    <h3>Attribution rule</h3>
+    <pre><code>attribute(at T):
+    <i>// A handover is exactly when delivery lag misattributes mail.</i>
+    if lock.prev &amp;&amp; (T - lock.prev.releasedAt) &lt; HANDOFF_GRACE_MS:
+        return lock.prev.email
+    return lock.holder          <i>// may be null</i></code></pre>
+
+    <p>Four lines, covering every case: a settled holder owns their mail; a message landing seconds after a handover goes to the person who left; a message landing shortly after the last person released goes to them; anything else is unowned.</p>
+
+    <div class="note-box ok">
+      <span class="label">Ownership never changes</span>
+      <p>It is decided once, at insert, and the column is never updated. There is no claim, no transfer and no contest — which removes an entire protocol from the design, along with the two columns and the UI that went with it.</p>
+    </div>
+
+    <p>The grace window is deliberately short. It stood at 90 seconds while a claim button existed as an escape hatch; with ownership immutable there is no escape hatch, so it is sized to cover ordinary delivery lag (2&ndash;30 seconds) without stealing mail the <em>incoming</em> holder triggered themselves — which takes longer than 30 seconds to arrange.</p>
+
+    <h3>Unowned mail is shared, not hidden</h3>
+    <p>When <code>owner</code> is <code>NULL</code>, nobody held the box when the message arrived, so there is nobody to protect it from. It is readable in full by everyone, and its subject is not masked — masking exists to hide a code from people who are not its owner, and this message has none.</p>
+    <p>That also fixes a failure the earlier design had: mail arriving while nobody was watching is no longer dead weight nobody can ever read. And the rule fits in one sentence — <strong>hold the box and you own what arrives; don't, and it belongs to everyone.</strong></p>
+    <p>The case it gives up is a code triggered by someone who closes their laptop before it lands. The handover grace covers the first 30 seconds of that; past it, abandoning the box means giving up the claim. Re-triggering the code is always available.</p>
+
+    <h3>Sanitising the HTML part</h3>
+    <p>Bodies render as HTML, because a verification email stripped to plaintext often loses the button you actually needed. The rendered body runs in a sandboxed iframe with scripts disabled (§10), so this pass is defence in depth rather than the only line — but two of its jobs are its own.</p>
+    <ul>
+      <li><strong>Remote images are tracking pixels.</strong> Loading one tells the sender that a message arrived at your login-code mailbox was opened, when, and from what IP. Every remote <code>src</code> and <code>srcset</code> is removed outright, so the URL never even reaches the browser and there is nothing to opt into later. Inline <code>data:</code> images stay — they fetch nothing.</li>
+      <li><strong>Links must survive.</strong> Magic links are half of what a temporary mailbox is for, so every <code>&lt;a&gt;</code> gets <code>target="_blank"</code> and <code>rel="noopener noreferrer"</code>, and <code>javascript:</code>, <code>vbscript:</code>, <code>data:</code> and <code>file:</code> hrefs are dropped.</li>
+    </ul>
+    <p>Everything scriptable or navigable is removed outright — <code>script</code>, <code>iframe</code>, <code>object</code>, <code>embed</code>, <code>form</code> and friends — along with every <code>on*</code> attribute. <strong>HTMLRewriter</strong> does the work: it is part of the Workers runtime, so this needs no dependency and no hand-rolled HTML parsing.</p>
+  </section>
+
+  <section id="s8">
+    <h2><span class="n">08</span> Subject masking</h2>
+    <p>Verification mail routinely puts the code in the subject line:</p>
+    <pre><code>123456 is your Netflix code
+G-729481 is your Google verification code
+Your Discord code: 483920
+[Steam] 5XK2M is your login code</code></pre>
+    <p>So "everyone sees titles, only the owner sees bodies" leaks the protected value in a large share of real cases. Mask any short alphanumeric run containing a digit:</p>
+    <pre><code>const mask = s =&gt; s.replace(/\b(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{4,10}\b/g, '••••••');
+
+<i>// "123456 is your Netflix code"  &#8594;  "•••••• is your Netflix code"</i>
+<i>// "[Steam] 5XK2M is your login code"  &#8594;  "[Steam] •••••• is your login code"</i></code></pre>
+    <p>Requiring at least one digit leaves ordinary words alone; the 4–10 character bound leaves "2FA" and years mostly intact while catching every common code format. It over-masks occasionally, which is the right direction to fail.</p>
+    <div class="note-box crit">
+      <span class="label">Non-negotiable</span>
+      <p>Masking happens in the Durable Object, before the value goes on the wire. Sending the raw subject and hiding it in the UI puts the code in a WebSocket frame that anyone can read from devtools. The raw <code>subject</code> column is serialised only for the owner.</p>
+    </div>
+  </section>
+
+  <section id="s9">
+    <h2><span class="n">09</span> WebSocket protocol</h2>
+    <p>JSON frames, one <code>t</code> field for type. Everything runs over the single authenticated socket rather than a second HTTP API, so there is exactly one place where identity is established.</p>
+
+    <h3>Client &#8594; server</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Frame</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><code>{t:"request"}</code></td><td>Join the queue. Idempotent.</td></tr>
+          <tr><td><code>{t:"release"}</code></td><td>Leave the queue, or hand back the lock.</td></tr>
+          <tr><td><code>{t:"archive"}</code></td><td>Ask for the full message list. Metadata only.</td></tr>
+          <tr><td><code>{t:"body", id}</code></td><td>Ask for one body. Server checks ownership.</td></tr>
+          <tr><td><code>{t:"ping"}</code></td><td>Answered at the edge by <code>setWebSocketAutoResponse</code>. Never reaches the DO.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Server &#8594; client</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Frame</th><th>Sent when</th></tr></thead>
+        <tbody>
+          <tr><td><code>{t:"state", ...}</code></td><td>After every recompute, to every socket. Serialised per recipient because <code>you.role</code> differs.</td></tr>
+          <tr><td><code>{t:"mail", item}</code></td><td>New message, broadcast to all. Metadata only, masked per recipient.</td></tr>
+          <tr><td><code>{t:"archive", items}</code></td><td>In response to <code>archive</code>.</td></tr>
+          <tr><td><code>{t:"body", id, body}</code><br><code>{t:"body", id, denied:true}</code></td><td>In response to <code>body</code>.</td></tr>
+          <tr><td><code>{t:"evict", reason:"timeout"}</code></td><td>To the evicted participant's sockets only.</td></tr>
+          <tr><td><code>{t:"bye", reason}</code></td><td>Before the server closes a socket, e.g. token expiry.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>state</h3>
+    <p>One roster rather than separate holder and queue fields. <em>Everyone</em> with the page open appears, including people who have not asked for the box — which is what lets the UI be a presence list and highlight your own row whatever your role.</p>
+    <pre><code>{
+  t: "state",
+  now: 1755300000000,        <i>// so the client counts down without clock skew</i>
+  you: {
+    email: "alice@example.com",
+    role: "holder" | "queued" | "idle",
+    position: 2 | null       <i>// 1-based within the queue</i>
+  },
+  people: [                  <i>// holder first, then the queue in order, then idle</i>
+    { email, role, position, online, since },
+    ...
+  ],
+  deadline: 1755300180000 | null
+}</code></pre>
+    <p><code>online</code> is false while someone is inside the reconnect grace with no live socket. The UI shows that as a hollow dot and a dimmed row rather than removing them, since they are about to come back.</p>
+
+    <h3>Message metadata</h3>
+    <pre><code>{
+  id: 417,
+  at: 1755299994000,
+  from: "no-reply@netflix.com",
+  fromName: "Netflix",
+  to: "codes@example.com",   <i>// matters once you use a catch-all</i>
+  subject: "•••••• is your Netflix code",   <i>// raw iff readable</i>
+  masked: true,
+  owner: "bob@example.com" | null,   <i>// null = shared</i>
+  mine: false,
+  readable: false,           <i>// yours, or unowned — the single gate</i>
+  authPass: true
+}</code></pre>
+    <p>And the body, returned only to the owner:</p>
+    <pre><code>{ t: "body", id, text, html, blockedImages }   <i>// or { t: "body", id, denied: true }</i></code></pre>
+
+    <div class="note-box ok">
+      <span class="label">One enforcement point</span>
+      <p>Lists never carry bodies. A body crosses the wire only in response to an explicit <code>{t:"body", id}</code>, checked at that moment against one condition — <code>owner === you || owner === null</code>. An unreadable body is never serialised at all, rather than being filtered out of a bulk payload, so there is one place to get right and nothing for a later refactor to leak.</p>
+    </div>
+    <p>At 100 rows the archive needs no pagination; metadata for the whole table is a few tens of kilobytes. Build the per-recipient serialisation loop plainly and resist adding a compute-once-send-to-all fast path — with per-message ownership it would have to be unwound.</p>
+  </section>
+
+  <section id="s10">
+    <h2><span class="n">10</span> Client behaviour</h2>
+    <ul>
+      <li>Connect on load. Send <code>{t:"ping"}</code> every 30 s.</li>
+      <li>Reconnect with exponential backoff, capped around 10 s. Inside <code>RECONNECT_GRACE_MS</code> the queue position survives.</li>
+      <li>On <code>pagehide</code>, call <code>ws.close()</code>. This is a courtesy that frees the box a few seconds sooner — not a correctness mechanism. It will not fire on iOS Safari, on tab discard, or on a crash, and none of that matters, because the socket closing is what the server actually reacts to.</li>
+      <li>Render the countdown from <code>deadline - now</code> using the server's <code>now</code>. Warn visibly at <code>WARN_AT_MS</code>.</li>
+      <li><strong>There is no session concept.</strong> One list, ordered by time. "New" is a client-side render decision: <code>item.at &gt; connectedAt</code> gets highlighted, everything else renders as history. Storing a session boundary would break on every reconnect and every second tab.</li>
+      <li>The archive is available to anyone authenticated, in any role — the idle included. Gating it on queue membership would push people to press Request just to re-read an old code, taking a turn from someone who needs the box.</li>
+      <li>Unread arrivals while the tab is hidden show as a count in the document title. It clears on <code>visibilitychange</code>.</li>
+      <li>A message that arrives already owned by you opens itself. Only the newest, and only yours.</li>
+    </ul>
+
+    <h3>Rendering happens in place, never by rebuilding</h3>
+    <p>Each message gets one DOM node, created once and patched thereafter. This is not a performance concern at a hundred rows — it is a correctness one. Rebuilding a list's <code>innerHTML</code> reparents its iframes, and <strong>reparenting an iframe reloads it</strong>, so every unrelated state change (someone joining the queue, a countdown tick) would blank and refetch every open message.</p>
+    <p>The same constraint shapes insertion order: new nodes are prepended and existing nodes are never moved, which works because arrivals are monotonic in time and the list is newest-first.</p>
+
+    <h3>Message bodies</h3>
+    <p>The rendered body goes in an iframe with <code>sandbox="allow-popups allow-popups-to-escape-sandbox"</code>. Scripts, forms and same-origin access stay blocked; what is deliberately allowed is <code>target="_blank"</code> navigation, because magic links are half of what a temporary mailbox is for.</p>
+    <p>The frame is built from <code>srcdoc</code> with its own <code>&lt;meta&gt;</code> CSP fixed at <code>img-src data:</code> — the second of three layers, after the server-side rewrite (§07) and before the parent page's own policy. It is assigned once per message; reassigning reloads the frame and loses scroll position.</p>
+    <p>An opened message shows its exact arrival time beside the plain-text toggle. The list gives you <code>5m ago</code>, which is what you want while scanning; the opened message gives the timestamp, which is what you want when judging whether a code is still current.</p>
+    <p>A fixed-height scrolling frame is a deliberate limitation: measuring content height would require running a script inside the frame, and no message body is worth that.</p>
+
+    <h3>Mail that is not yours still opens</h3>
+    <p>A locked message used to be inert — no cursor, no hover, nothing happened on click. That is the worst version of a refusal: it reads as broken rather than as deliberate, and it leaves the reader with no idea what to do next.</p>
+    <p>Every card opens now. An unreadable one opens onto two sentences instead of a body, over a large, very faint eye-with-a-slash watermark:</p>
+    <pre><code><b>Received by bob@example.com, so only they can open it.</b>       <i>&#9585;&#9583;</i>
+Request the mailbox, then trigger the email again — the new    <i>(&#9585;&#9583;)</i>
+one will be yours. Or ask bob@example.com to share this one.     <i>&#9585;&#9583;</i></code></pre>
+    <p>The watermark does the work the text cannot do fast enough. An expanded panel sits exactly where a message body would, so at a glance it reads as a very short email; the mark says <em>this is not content</em> before a word of it is read. It is set at 7% opacity of the primary ink, right-aligned and clear of the text, so it registers peripherally without ever competing to be read.</p>
+    <p>The second sentence changes with your own role — someone already holding the box is told to just trigger the email again, someone in the queue is told to wait for their turn first, and only someone idle is told to request it. Advice that ignores the state you are actually in is worse than none.</p>
+    <p>There is no button here. The action already exists on your own row in the roster, a few centimetres up the page, and a second copy of it inside a message would be the only place in the interface where the same command appears twice.</p>
+    <p>No body is requested for these. The client already knows the message is unreadable, so the explanation is built locally and the round trip never happens; the server's own refusal stays in place purely as a backstop for the case where ownership changed between the list arriving and the body being asked for.</p>
+
+    <h3>The plain-text view</h3>
+    <p>Not a fallback to be tolerated — for a lot of verification mail it is the better view, so it gets the same care as the rendered one.</p>
+    <ul>
+      <li><strong>Monospace, at a readable size.</strong> The usual argument for a proportional face is prose comfort, and it loses here: this is a mailbox for codes, and telling <code>0</code> from <code>O</code> and <code>1</code> from <code>l</code> matters more than paragraph rhythm. Monospace also preserves whatever indentation the sender used to set a code apart.</li>
+      <li><strong>Full-strength ink.</strong> Message text is the content, not a caption, so it takes the primary text colour rather than the muted secondary one used for metadata.</li>
+      <li><strong>URLs become links.</strong> Only absolute <code>http(s)</code> URLs match, which is what makes it safe without a sanitising pass — <code>javascript:</code> and <code>data:</code> can never be produced. Trailing sentence punctuation is trimmed off the href, so <em>"visit https://x.example/verify."</em> does not link the full stop.</li>
+      <li><strong>Light tidying.</strong> Trailing spaces and runs of three or more blank lines collapse, which templated mail produces constantly.</li>
+    </ul>
+    <p>What it deliberately does <em>not</em> do is highlight anything that looks like a code. That is the same guess §13 rejects for extraction, only quieter: a highlight on the wrong token still reads as "this is your code", and being wrong occasionally is worse than never claiming to know.</p>
+
+    <h3>The presence list</h3>
+    <p>One row per person, in one shape: avatar, address, status, and — for you alone — the single action available. Status is carried by colour, so the same row reads at a glance:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dot</th><th>Meaning</th><th>Your action</th></tr></thead>
+        <tbody>
+          <tr><td>Solid green</td><td>Has the mailbox</td><td>Release</td></tr>
+          <tr><td>Solid amber</td><td>Waiting, with queue position</td><td>Exit</td></tr>
+          <tr><td>Solid grey</td><td>Here, not asking</td><td>Request</td></tr>
+          <tr><td>Hollow grey</td><td>Away — inside the reconnect grace</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Rows are split into three ungrouped cards — in use, waiting, idle — so the state of the box reads from the shape of the page before any row is read. There are no group headings: each row's own status says what it is, so a heading above it would only repeat that.</p>
+    <p>Status is written as a sentence with the address as its subject, so a row reads straight through — <em>alice@example.com · is using the mailbox</em>, or <em>· is next in line</em>. Your own row switches to the second person (<em>You are using the mailbox</em>), which is the one place the phrasing changes.</p>
+    <p>The address and the status sit on two lines rather than one, with the avatar beside them and the action button at the end. A full-sentence status and a long address would otherwise compete for the same horizontal space, and the row would break first on a phone — where it is most likely to be read. Stacking removes the breakpoint rather than moving it.</p>
+    <p>Only the first card keeps a placeholder when empty, because "No one is using the mailbox" is actionable: you can take it right now. An empty queue is an absence with nothing attached, so that card simply is not drawn, and neither is the countdown unless a clock is running.</p>
+    <p>Among the idle the current user sorts first, and their row carries a <code>me</code> badge alongside the highlight. The other two cards are never reordered — those carry queue position, and sorting them would misreport whose turn is next.</p>
+    <p>Connection state follows the same rule as everything else: nothing is shown while the socket is healthy, and a <em>Reconnecting…</em> bar appears when it is not. A permanent green dot confirming normality is noise, and removing it makes the abnormal case louder rather than quieter.</p>
+    <p>Sign-out is an outlined button in the top right, and it asks before acting. Signing back in is only a one-time PIN away, so the dialog is not there to prevent damage — it is there because the button sits near things people press all day, and an accidental sign-out is pure friction.</p>
+
+    <h3>Three addresses, three lines</h3>
+    <p>A message involves three addresses, and conflating them is the easiest way to make this UI confusing: the <strong>sender</strong> it came from, the <strong>address of ours</strong> it was delivered to, and the <strong>person</strong> it ended up belonging to. Each gets its own line, in that order:</p>
+    <pre><code>Netflix  no-reply@netflix.com                    5m ago
+•••••• is your Netflix code
+to codes@example.com
+received by bob@example.com</code></pre>
+    <p>The third line is the one that decides access, so it says so in words rather than as a status chip. It reads <code>received by you</code>, <code>received by bob@example.com</code>, or <code>received by no one · open to everyone</code> — that last clause matters, because "no one" alone would read as locked when it means the opposite.</p>
+    <p>A <code>yours</code> badge sits at the right of that line when the message is yours. It duplicates the sentence, deliberately: the sentence is for reading and the badge is for scanning a list without reading any of it.</p>
+  </section>
+
+  <section id="s11">
+    <h2><span class="n">11</span> Security checklist</h2>
+    <ul class="check">
+      <li><code>workers_dev = false</code> in <code>wrangler.toml</code>.</li>
+      <li>Access application covers the whole hostname, including the upgrade path.</li>
+      <li>JWT signature, <code>exp</code> and <code>aud</code> verified in the Worker, independently of Access.</li>
+      <li>Identity taken from the JWT <code>email</code> claim only, never from a request body.</li>
+      <li>Socket closed once its recorded <code>exp</code> passes.</li>
+      <li>Subject masking applied in the DO, before serialisation.</li>
+      <li>Bodies served only on explicit request, only to <code>owner</code>.</li>
+      <li><code>Cache-Control: no-store</code> on every non-static response.</li>
+      <li>Sender allow-list enforced in <code>email()</code>; non-matching mail dropped without a bounce.</li>
+      <li>SPF/DKIM/DMARC result surfaced in the UI — a spoofed "here's your code" is otherwise indistinguishable from a real one, and the whole point of this box is that people act on codes without thinking.</li>
+      <li>Ring buffer trim runs on every insert, so a spam flood cannot grow storage.</li>
+      <li>Restrictive <code>Content-Security-Policy</code> on the served HTML.</li>
+      <li>Access policy membership reviewed whenever someone leaves the group.</li>
+    </ul>
+  </section>
+
+  <section id="s12">
+    <h2><span class="n">12</span> Configuration</h2>
+    <pre><code>name = "cf-mailbox"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+<b>workers_dev = false</b>
+
+[[durable_objects.bindings]]
+name = "MAILBOX"
+class_name = "Mailbox"
+
+[[migrations]]
+tag = "v1"
+<b>new_sqlite_classes = ["Mailbox"]</b>
+
+[vars]
+ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
+ACCESS_AUD         = "&lt;application audience tag&gt;"
+ALLOWED_SENDERS    = "netflix.com,spotify.com,no-reply@github.com"</code></pre>
+    <p><code>ALLOWED_SENDERS</code> is a comma-separated list of domains and full addresses. It lives in config rather than in a UI: changing it is a ten-second redeploy, and there is no mutating endpoint to secure and no way for someone to widen it to <code>*</code> and forget.</p>
+    <p>Email Routing is configured in the dashboard: route the address to this Worker. The UI is a single HTML string served by the Worker — no Pages project and no build step.</p>
+  </section>
+
+  <section id="s13">
+    <h2><span class="n">13</span> Decided against</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Rejected</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr><td>HTTP polling with a lease</td><td>Superseded by WebSockets. <code>beforeunload</code> is unreliable on iOS Safari, tab discard and crashes, so a lease would be the only real mechanism and every release would be a race.</td></tr>
+          <tr><td>Maximum session length</td><td>An idle holder costs nothing while the queue is empty, and queue pressure handles every case where it does cost something.</td></tr>
+          <tr><td>Auto-requeue after eviction</td><td>Two active people would trade the box every three minutes indefinitely.</td></tr>
+          <tr><td>Opening the page joins the queue</td><td>A forgotten background tab would take a full turn on every rotation.</td></tr>
+          <tr><td>Deleting mail that arrives unowned</td><td>Destroys codes during ordinary disconnects, and the service being signed into often rate-limits the retry.</td></tr>
+          <tr><td>A separate session boundary in storage</td><td>Breaks on reconnects and second tabs. The client can derive "new" from its own connect time.</td></tr>
+          <tr><td>Claiming, transferring or contesting ownership</td><td>Attribution is decided once and never changes. The handover grace covers the case the claim protocol existed for, in four lines and with no UI, and unowned mail being readable by everyone removes the other reason to claim.</td></tr>
+          <tr><td>Hiding mail that nobody owns</td><td>There is no one to protect it from, and a message no one can ever read is dead weight in a hundred-row buffer.</td></tr>
+          <tr><td>Extracting the code from the message</td><td>Heuristics get it wrong often enough that a confidently displayed wrong code is worse than none — you copy it, it fails, and nothing tells you the app guessed. Rendering the message solves the same problem exactly.</td></tr>
+          <tr><td>Loading remote images, ever</td><td>Every image in a marketing-templated email is a callback to the sender. An opt-in control was built and then removed: forwarded mail rewrites URLs often enough that it only half-worked, and "never" is both simpler and strictly more private than "not yet".</td></tr>
+          <tr><td>A frontend framework</td><td>Tab badge, new-message highlighting and auto-open are a few lines each. The rendering rewrite that iframes require is needed either way, and a build step is a real cost against a project whose deploy is one command.</td></tr>
+          <tr><td>Per-user addresses instead of a lock</td><td>Would make ownership unambiguous and remove the queue entirely — but it does not apply here, because the accounts being shared are already registered to one fixed address.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Open, and fine to defer</h3>
+    <ul>
+      <li>A 24-hour TTL sweep on top of the ring buffer. Cheap, further reduces data at rest, needs the alarm to serve two purposes.</li>
+      <li>Letting an owner delete their own messages from the archive.</li>
+      <li>Auto-release when all of the holder's tabs have been <code>hidden</code> for a couple of minutes. Nice, but adds a visibility protocol for a case queue pressure already covers.</li>
+    </ul>
+  </section>
+
+  <footer>
+    CF Mailbox · design specification v8 · 2026-08-17
+  </footer>
+
+</div>
