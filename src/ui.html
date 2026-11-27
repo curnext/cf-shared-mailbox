@@ -88,6 +88,62 @@
 
   /* --------------------------------------------------------------- roster */
   #groups { display: flex; flex-direction: column; gap: 0.7rem; }
+
+  /* ------------------------------------------------------- free mailbox
+     The one state where the next move is obvious and usually wanted, so it
+     gets the loudest treatment on the page and the action sits right in it. */
+  .free {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; gap: 0.95rem;
+    padding: 1.05rem 1.1rem;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--accent-soft) 0%, var(--card) 85%);
+    border: 1.5px solid color-mix(in srgb, var(--accent) 38%, transparent);
+    box-shadow: var(--shadow-lift);
+    animation: fadeIn .25s var(--ease);
+  }
+  .free-icon {
+    position: relative; flex: none;
+    width: 46px; height: 46px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--accent); color: var(--card);
+  }
+  .free-icon svg { width: 22px; height: 22px; }
+  /* A slow ring radiating outward: "available", noticed from the corner of an eye. */
+  .free-icon::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(var(--live-rgb), .5);
+    animation: ring 2.2s var(--ease) infinite;
+  }
+  @keyframes ring {
+    0%   { box-shadow: 0 0 0 0 rgba(var(--live-rgb), .5); }
+    75%  { box-shadow: 0 0 0 12px rgba(var(--live-rgb), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--live-rgb), 0); }
+  }
+  .free-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.12rem; }
+  .free-title { font-size: 1.02rem; font-weight: 650; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.45rem; }
+  .free-tag {
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 0.08rem 0.38rem; border-radius: 4px;
+    background: rgba(var(--live-rgb), .16); color: var(--live);
+  }
+  .free-hint { font-size: 0.83rem; color: var(--ink-2); line-height: 1.45; }
+  button.take {
+    flex: none; font: inherit; font-size: 0.9rem; font-weight: 650; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+    padding: 0.62rem 1.2rem; border-radius: 999px; border: none;
+    background: var(--accent); color: var(--card);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: transform .12s var(--ease), filter .16s var(--ease), box-shadow .16s var(--ease);
+  }
+  button.take:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 42%, transparent); }
+  button.take:active { transform: scale(0.96); }
+  button.take:disabled { cursor: default; filter: none; transform: none; opacity: 0.8; }
+  button.take .spinner { width: 12px; height: 12px; }
+  @media (max-width: 30rem) {
+    .free { flex-wrap: wrap; }
+    button.take { width: 100%; padding: 0.7rem 1rem; }
+  }
   .card { background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
   .people { list-style: none; margin: 0; padding: 0; }
 
@@ -104,7 +160,6 @@
   .person.self { background: var(--accent-soft); }
   .person.self:hover { background: var(--accent-soft); filter: brightness(0.985); }
   .person.away { opacity: 0.5; }
-  .placeholder { padding: 0.9rem; color: var(--ink-3); font-size: 0.88rem; text-align: center; }
 
   .avatar {
     width: 32px; height: 32px; border-radius: 50%; flex: none;
@@ -194,38 +249,9 @@
     display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
     padding: 0.45rem 0.65rem; background: var(--sunk); flex-wrap: wrap;
   }
-  .seg { display: flex; background: var(--card); border-radius: 7px; padding: 2px; gap: 2px; }
-  .seg button {
-    font: inherit; font-size: 0.73rem; font-weight: 550; cursor: pointer;
-    border: none; background: none; color: var(--ink-2);
-    padding: 0.2rem 0.6rem; border-radius: 5px;
-    transition: background .16s var(--ease), color .16s var(--ease);
-  }
-  .seg button:hover { color: var(--ink); }
-  .seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
   .exact { font-size: 0.71rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
   .frame { display: block; width: 100%; height: 26rem; border: 0; background: #fff; }
   @media (prefers-color-scheme: dark) { .frame { background: #141D1C; } }
-  /* Monospace stays, at a readable size rather than a footnote one: this is a
-     mailbox for verification codes, and telling 0 from O and 1 from l matters
-     more here than prose comfort. Full-strength ink, not the muted secondary. */
-  .plain {
-    margin: 0; padding: 1rem 1.1rem;
-    font-family: var(--mono); font-size: 0.8rem; line-height: 1.7;
-    color: var(--ink);
-    white-space: pre-wrap; overflow-wrap: anywhere;
-    max-height: 26rem; overflow: auto;
-  }
-  .plain a {
-    color: var(--accent);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
-    border-radius: 3px;
-    transition: background .16s var(--ease);
-  }
-  .plain a:hover { background: var(--accent-soft); }
-  .plain .quiet { color: var(--ink-3); }
   .locked {
     position: relative; overflow: hidden;
     padding: 1rem 1.1rem;
@@ -244,7 +270,19 @@
   .locked p { margin: 0; position: relative; max-width: 28rem; }
   .locked-lead { font-size: 0.87rem; color: var(--ink); }
   .locked-hint { font-size: 0.82rem; color: var(--ink-2); line-height: 1.55; }
-  .empty { color: var(--ink-3); font-size: 0.88rem; text-align: center; padding: 2.5rem 0; }
+  /* An empty inbox is the normal resting state, so it should read as a place
+     where mail will land, not as a stray caption. */
+  .empty {
+    min-height: 11rem; padding: 2rem 1.25rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem;
+    text-align: center; color: var(--ink-2);
+    border: 2px dashed var(--line); border-radius: var(--radius);
+    background: color-mix(in srgb, var(--card) 55%, transparent);
+  }
+  .empty-icon { width: 2.4rem; height: 2.4rem; color: var(--ink-3); margin-bottom: 0.35rem; }
+  .empty-icon svg { display: block; width: 100%; height: 100%; }
+  .empty-title { font-size: 0.95rem; font-weight: 600; color: var(--ink); }
+  .empty-hint { font-size: 0.82rem; color: var(--ink-3); max-width: 22rem; }
 
   /* ---------------------------------------------------------------- dialog */
   dialog {
@@ -279,7 +317,6 @@
     .msg-head { padding: 0.65rem 0.75rem; }
     .avatar { width: 30px; height: 30px; }
     .frame { height: 20rem; }
-    .plain { max-height: 20rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -300,7 +337,13 @@
   <div id="groups"></div>
 
   <div class="section-label"><span>Messages</span><span id="count"></span></div>
-  <div class="list" id="list"><div class="empty">Nothing yet.</div></div>
+  <div class="list" id="list">
+    <div class="empty">
+      <span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span>
+      <span class="empty-title">No mail yet</span>
+      <span class="empty-hint">New messages appear here the moment they arrive.</span>
+    </div>
+  </div>
 
 </div>
 
@@ -321,10 +364,10 @@
 
   var TITLE = 'Mailbox';
 
-  var ws = null, backoff = 500, pinger = null, everConnected = false;
+  var ws = null, backoff = 500, pinger = null, everConnected = false, removed = false;
   var state = null, skew = 0, connectedAt = Date.now();
   var items = new Map();     // id -> item metadata from the server
-  var cards = new Map();     // id -> { node, els, open, view, content, denied, sent, painted }
+  var cards = new Map();     // id -> { node, els, open, content, denied, sent, painted }
   var unread = new Set();
   var notice = null;
   var autoOpened = 0;
@@ -377,9 +420,10 @@
       handle(m);
     };
     ws.onclose = function () {
-      if (everConnected) $('offline').hidden = false;
-      clearInterval(pinger);
       ws = null;
+      clearInterval(pinger);
+      if (removed) return;
+      if (everConnected) $('offline').hidden = false;
       setTimeout(connect, backoff);
       backoff = Math.min(backoff * 2, 10000);
     };
@@ -396,6 +440,7 @@
 
       case 'state': {
         skew = m.now - Date.now();
+        taking = false;
         var firstState = !state;
         state = m;
         paintPeople();
@@ -414,6 +459,10 @@
         var known = items.has(m.item.id);
         items.set(m.item.id, m.item);
         syncCard(m.item, !known);
+        if (known && !m.item.readable) {
+          var lockedCard = cards.get(m.item.id);
+          if (lockedCard) { forgetBody(lockedCard); paintBody(m.item.id); }
+        }
         if (!known) {
           if (document.hidden) unread.add(m.item.id);
           if (m.item.mine && m.item.id > autoOpened) { autoOpened = m.item.id; openCard(m.item.id); }
@@ -438,8 +487,7 @@
         var card = cards.get(m.id);
         if (!card) return;
         card.denied = !!m.denied;
-        card.content = m.denied ? null : { text: m.text || '', html: m.html || '' };
-        if (card.content && !card.content.html) card.view = 'text';
+        card.content = m.denied ? null : { html: m.html || '' };
         paintBody(m.id);
         return;
       }
@@ -449,6 +497,11 @@
         return;
 
       case 'bye':
+        if (m.reason === 'revoked') {
+          removed = true;
+          showNotice('Your access to this mailbox has been removed.');
+          return;
+        }
         showNotice('Session expired. Reloading…');
         setTimeout(function () { location.reload(); }, 1500);
         return;
@@ -543,11 +596,62 @@
     return li;
   }
 
-  function groupCard(people, placeholder) {
+  // Inbox with a downward arrow: "mail comes to you".
+  var INBOX_IN =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
+    + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M12 3v9"/><path d="m8.5 8.5 3.5 3.5 3.5-3.5"/>'
+    + '<path d="M3 14h4.5l1.5 2.5h6l1.5-2.5H21"/>'
+    + '<path d="M3 14v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"/>'
+    + '</svg>';
+
+  // Set on click, cleared by the next state frame, so a second click in the
+  // round trip cannot send a second request.
+  var taking = false;
+
+  /** Shown instead of the holder row whenever nobody has the box. */
+  function freeCard() {
+    var card = el('div', 'free');
+    card.setAttribute('role', 'region');
+    card.setAttribute('aria-label', 'The mailbox is free');
+
+    var icon = el('span', 'free-icon');
+    icon.innerHTML = INBOX_IN;   // constant markup, no interpolation
+
+    var text = el('div', 'free-text');
+    var title = el('div', 'free-title');
+    title.appendChild(document.createTextNode('The mailbox is free'));
+    var tag = el('span', 'free-tag'); tag.textContent = 'available';
+    title.appendChild(tag);
+    var hint = el('div', 'free-hint');
+    hint.textContent = 'Take it now, and every email that arrives while you hold it is yours alone.';
+    text.appendChild(title); text.appendChild(hint);
+
+    var button = el('button', 'take');
+    button.type = 'button';
+    if (taking) {
+      button.disabled = true;
+      button.appendChild(el('span', 'spinner'));
+      button.appendChild(document.createTextNode('Taking…'));
+    } else {
+      button.textContent = 'Take the mailbox';
+    }
+    button.onclick = function () {
+      if (taking) return;
+      taking = true;
+      notice = null; paintNotice();
+      send({ t: 'request' });
+      paintPeople();
+    };
+
+    card.appendChild(icon); card.appendChild(text); card.appendChild(button);
+    return card;
+  }
+
+  function groupCard(people) {
     var card = el('div', 'card');
     var ul = el('ul', 'people');
-    if (people.length) people.forEach(function (p) { ul.appendChild(personRow(p)); });
-    else { var ph = el('li', 'placeholder'); ph.textContent = placeholder; ul.appendChild(ph); }
+    people.forEach(function (p) { ul.appendChild(personRow(p)); });
     card.appendChild(ul);
     return card;
   }
@@ -565,10 +669,12 @@
       return (b.email === state.you.email ? 1 : 0) - (a.email === state.you.email ? 1 : 0);
     });
 
-    // Each row says what it is, so group headings would only repeat it. The
-    // first card keeps a placeholder because "no one is using the mailbox" is
-    // actionable; an empty queue is an absence, so it simply vanishes.
-    host.appendChild(groupCard(by('holder'), 'No one is using the mailbox'));
+    // Each row says what it is, so group headings would only repeat it. A free
+    // mailbox gets its own card with the action in it, because it is the one
+    // empty state worth acting on; an empty queue simply vanishes.
+    var holders = by('holder');
+    if (holders.length) host.appendChild(groupCard(holders));
+    else host.appendChild(freeCard());
     if (by('queued').length) host.appendChild(groupCard(by('queued')));
     if (idle.length) host.appendChild(groupCard(idle));
 
@@ -620,18 +726,13 @@
     body.hidden = true;
 
     var bar = el('div', 'body-bar');
-    var seg = el('div', 'seg');
-    var segHtml = el('button'); segHtml.type = 'button'; segHtml.textContent = 'Message';
-    var segText = el('button'); segText.type = 'button'; segText.textContent = 'Plain text';
-    seg.appendChild(segHtml); seg.appendChild(segText);
     var exact = el('span', 'exact');
-    bar.appendChild(seg); bar.appendChild(exact);
+    bar.appendChild(exact);
 
     var frame = el('iframe', 'frame');
     frame.setAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox');
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.setAttribute('title', 'Message body');
-    var plain = el('pre', 'plain');
 
     var locked = el('div', 'locked');
     var lockedMark = el('div', 'locked-mark');
@@ -640,7 +741,7 @@
     var lockedHint = el('p', 'locked-hint');
     locked.appendChild(lockedMark); locked.appendChild(lockedLead); locked.appendChild(lockedHint);
 
-    body.appendChild(bar); body.appendChild(frame); body.appendChild(plain); body.appendChild(locked);
+    body.appendChild(bar); body.appendChild(frame); body.appendChild(locked);
     node.appendChild(head); node.appendChild(body);
 
     var card = {
@@ -648,17 +749,14 @@
       els: { name: name, addr: addr, when: when, subject: subject,
              toLine: toLine, toText: toText, recvText: recvText,
              warnTag: warnTag, mineTag: mineTag,
-             body: body, bar: bar, seg: seg, segHtml: segHtml, segText: segText,
-             exact: exact, frame: frame, plain: plain,
+             body: body, bar: bar, exact: exact, frame: frame,
              locked: locked, lockedMark: lockedMark,
              lockedLead: lockedLead, lockedHint: lockedHint },
-      open: false, view: 'html',
-      content: null, denied: false, sent: false, painted: false, plainRendered: false
+      open: false,
+      content: null, denied: false, sent: false, painted: false
     };
 
     head.onclick = function () { toggleCard(item.id); };
-    segHtml.onclick = function () { card.view = 'html'; paintBody(item.id); };
-    segText.onclick = function () { card.view = 'text'; paintBody(item.id); };
 
     return card;
   }
@@ -701,13 +799,30 @@
 
     // Three addresses are in play — the sender above, the address of ours it
     // landed on, and which of us ended up with it. The last decides access.
-    e.recvText.textContent = item.mine
-      ? 'received by you'
-      : item.owner
-        ? 'received by ' + item.owner
-        : 'received by no one · open to everyone';
+    e.recvText.textContent = recvLabel(item);
     e.mineTag.hidden = !item.mine;
     e.warnTag.hidden = item.authPass;
+  }
+
+  function recvLabel(item) {
+    if (item.mine) return 'received by you';
+    if (item.owner) return 'received by ' + item.owner;
+    if (!item.readable) return 'received by no one · locked';
+    var mins = Math.max(1, Math.ceil((item.openUntil - serverNow()) / 60000));
+    return 'received by no one · open to everyone for ' + mins + ' more min';
+  }
+
+  /**
+   * The server re-sends an item when it stops being readable (a public
+   * message's window closing). Forget the body, so nothing of it stays in the
+   * page, and ask again only if it ever becomes readable.
+   */
+  function forgetBody(card) {
+    card.content = null;
+    card.denied = false;
+    card.sent = false;
+    card.painted = false;
+    card.els.frame.removeAttribute('srcdoc');
   }
 
   function toggleCard(id) {
@@ -758,54 +873,9 @@
       + '</style>' + card.content.html;
   }
 
-  // Only absolute http(s) URLs are linkified, which is also what keeps this
-  // safe — javascript: and data: can never match, so no sanitising is needed.
-  var URL_RE = /https?:\/\/[^\s<>"'`]+/g;
-  var TRAILING_PUNCT = /[.,;:!?)\]}>'"]+$/;
-
-  function renderPlain(host, text) {
-    host.textContent = '';
-
-    var tidy = String(text || '')
-      .replace(/[ \t]+$/gm, '')      // trailing spaces, common in wrapped mail
-      .replace(/\n{3,}/g, '\n\n')    // runs of blank lines from templates
-      .trim();
-
-    if (!tidy) {
-      var none = el('span', 'quiet');
-      none.textContent = '(no text content)';
-      host.appendChild(none);
-      return;
-    }
-
-    var cursor = 0, match;
-    URL_RE.lastIndex = 0;
-    while ((match = URL_RE.exec(tidy)) !== null) {
-      // "…visit https://x.com/verify." — the sentence's full stop is not part
-      // of the URL, so trim trailing punctuation and resume just after.
-      var url = match[0].replace(TRAILING_PUNCT, '');
-      if (!url) { URL_RE.lastIndex = match.index + match[0].length; continue; }
-
-      if (match.index > cursor) {
-        host.appendChild(document.createTextNode(tidy.slice(cursor, match.index)));
-      }
-
-      var link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = url;
-      host.appendChild(link);
-
-      cursor = match.index + url.length;
-      URL_RE.lastIndex = cursor;
-    }
-    if (cursor < tidy.length) host.appendChild(document.createTextNode(tidy.slice(cursor)));
-  }
-
   function showLocked(card, lead, hint, marked) {
     var e = card.els;
-    e.bar.hidden = true; e.frame.hidden = true; e.plain.hidden = true;
+    e.bar.hidden = true; e.frame.hidden = true;
     e.locked.hidden = false;
     e.locked.className = 'locked' + (marked ? ' marked' : '');
     e.lockedMark.hidden = !marked;
@@ -819,8 +889,19 @@
    * the useful answer is almost always "get your own copy", not "give up".
    */
   function paintLocked(card, item) {
-    var owner = item.owner || 'someone else';
     var role = state ? state.you.role : 'idle';
+
+    if (!item.owner) {
+      var again = role === 'holder'
+        ? 'You have the mailbox, so trigger the email again and the new one will be yours.'
+        : role === 'queued'
+          ? 'You are in the queue. Once the mailbox is yours, trigger the email again.'
+          : 'Request the mailbox, then trigger the email again — the new one will be yours.';
+      showLocked(card, 'Nobody had the mailbox when this arrived, so it was open to everyone for 10 minutes. It is locked now.', again, true);
+      return;
+    }
+
+    var owner = item.owner;
     var ask = ' Or ask ' + owner + ' to share this one.';
 
     var hint;
@@ -846,11 +927,7 @@
     if (!card.content) { showLocked(card, 'Loading…', '', false); return; }
 
     e.locked.hidden = true;
-    var hasHtml = !!card.content.html;
     e.bar.hidden = false;
-    e.seg.hidden = !hasHtml;
-    e.segHtml.className = card.view === 'html' ? 'on' : '';
-    e.segText.className = card.view === 'text' ? 'on' : '';
 
     var item = items.get(id);
     // The list shows "5m ago"; an opened message shows exactly when it landed.
@@ -858,16 +935,13 @@
       ? new Date(item.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'medium' })
       : '';
 
-    if (card.view === 'html' && hasHtml) {
-      e.plain.hidden = true;
-      e.frame.hidden = false;
-      // Assign srcdoc once; reassigning reloads the frame and loses scroll.
-      if (!card.painted) { card.painted = true; e.frame.srcdoc = srcdocFor(card); }
-    } else {
-      e.frame.hidden = true;
-      e.plain.hidden = false;
-      if (!card.plainRendered) { card.plainRendered = true; renderPlain(e.plain, card.content.text); }
+    if (!card.content.html) {
+      showLocked(card, '(no content)', '', false);
+      return;
     }
+    e.frame.hidden = false;
+    // Assign srcdoc once; reassigning reloads the frame and loses scroll.
+    if (!card.painted) { card.painted = true; e.frame.srcdoc = srcdocFor(card); }
   }
 
   // ------------------------------------------------------------------ chrome
@@ -885,7 +959,9 @@
     paintClock();
     cards.forEach(function (card, id) {
       var item = items.get(id);
-      if (item) card.els.when.textContent = ago(item.at);
+      if (!item) return;
+      card.els.when.textContent = ago(item.at);
+      if (!item.owner) card.els.recvText.textContent = recvLabel(item);
     });
   }
 
@@ -893,7 +969,11 @@
   var dialog = $('signout-dialog');
   $('signout').onclick = function () { dialog.showModal(); };
   $('signout-cancel').onclick = function () { dialog.close(); };
-  $('signout-confirm').onclick = function () { location.href = '/cdn-cgi/access/logout'; };
+  // returnTo lands back on this page's root, which then shows the Access
+  // login, instead of leaving people on a static "logged out" page.
+  $('signout-confirm').onclick = function () {
+    location.href = '/cdn-cgi/access/logout?returnTo=' + encodeURIComponent(location.origin + '/');
+  };
 
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) { unread.clear(); paintTitle(); }

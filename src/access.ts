@@ -107,7 +107,10 @@ export async function verifyAccessJwt(
 
   if (typeof claims.email !== 'string' || !claims.email) throw new Error('no email claim');
 
-  return { email: claims.email.toLowerCase(), expMs: claims.exp * 1000 };
+  // A token with no iat is treated as older than any revocation.
+  const iatMs = typeof claims.iat === 'number' ? claims.iat * 1000 : 0;
+
+  return { email: claims.email.toLowerCase(), expMs: claims.exp * 1000, iatMs };
 }
 
 function cookie(request: Request, name: string): string | null {
@@ -126,7 +129,10 @@ function cookie(request: Request, name: string): string | null {
  * cookie fallback matters for the WebSocket upgrade, where a browser cannot
  * set request headers itself.
  */
-export async function authenticate(request: Request, env: Env): Promise<Identity | null> {
+export async function authenticate(
+  request: Request,
+  env: Pick<Env, 'ACCESS_TEAM_DOMAIN' | 'ACCESS_AUD'>,
+): Promise<Identity | null> {
   const token =
     request.headers.get('Cf-Access-Jwt-Assertion') ?? cookie(request, 'CF_Authorization');
   if (!token) return null;

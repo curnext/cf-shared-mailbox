@@ -95,7 +95,6 @@ function mail(overrides: Partial<IncomingMail> = {}): IncomingMail {
     to: 'box@example.com',
     subject: '123456 is your Netflix code',
     subjectMasked: '•••••• is your Netflix code',
-    text: 'Your code is 123456. It expires in 15 minutes.',
     html: '<p>Your code is 123456.</p>',
     authPass: true,
     ...overrides,
@@ -287,13 +286,13 @@ describe('ownership and masking', () => {
 
     send(alice, { t: 'body', id });
     await vi.waitFor(() => expect(alice.latest('body')).toBeDefined());
-    expect(alice.latest('body').text).toContain('123456');
-    expect(alice.latest('body').html).toContain('Your code is');
+    expect(alice.latest('body').html).toContain('Your code is 123456');
+    expect(alice.latest('body')).not.toHaveProperty('text');
 
     send(bob, { t: 'body', id });
     await vi.waitFor(() => expect(bob.latest('body')).toBeDefined());
     expect(bob.latest('body').denied).toBe(true);
-    expect(bob.latest('body').text).toBeUndefined();
+    expect(bob.latest('body').html).toBeUndefined();
   });
 });
 
@@ -411,6 +410,136 @@ describe('unowned mail is shared', () => {
     send(bob, { t: 'body', id: bob.latest('mail').item.id });
     await vi.waitFor(() => expect(bob.latest('body')).toBeDefined());
     expect(bob.latest('body').denied).toBeUndefined();
-    expect(bob.latest('body').text).toContain('123456');
+    expect(bob.latest('body').html).toContain('123456');
+  });
+
+  it('locks for everyone once the public window closes', async () => {
+    const alice = await connect('alice@example.com');
+    await inBox((instance: any) => {
+      instance.lock.prev = null;
+      return instance.deliver(mail());
+    });
+    await vi.waitFor(() => expect(alice.latest('mail')).toBeDefined());
+    const fresh = alice.latest('mail').item;
+    expect(fresh.openUntil).toBe(fresh.at + 600_000);
+
+    // The window's wake-up is scheduled, then pretend it has passed.
+    await inBox(async (instance: any) => {
+      expect(await instance.ctx.storage.getAlarm()).toBe(fresh.at + 600_000);
+      instance.ctx.storage.sql.exec('UPDATE messages SET received_at = received_at - 600000');
+      await instance.alarm();
+    });
+
+    // Open tabs are told straight away...
+    await vi.waitFor(() => expect(alice.latest('mail').item.readable).toBe(false));
+    const locked = alice.latest('mail').item;
+    expect(locked.masked).toBe(true);
+    expect(locked.subject).not.toContain('123456');
+
+    // ...and the server refuses the body, and a fresh archive agrees.
+    send(alice, { t: 'body', id: locked.id });
+    await vi.waitFor(() => expect(alice.latest('body')).toBeDefined());
+    expect(alice.latest('body').denied).toBe(true);
+    send(alice, { t: 'archive' });
+    await vi.waitFor(() => expect(alice.latest('archive')).toBeDefined());
+    expect(alice.latest('archive').items[0].readable).toBe(false);
+  });
+
+  it('leaves owned mail readable by its owner after the window', async () => {
+    const alice = await connect('alice@example.com');
+    send(alice, { t: 'request' });
+    await expectRole(alice, 'holder');
+    await inBox(async (instance: any) => {
+      instance.lock.prev = null;
+      await instance.deliver(mail());
+      instance.ctx.storage.sql.exec('UPDATE messages SET received_at = received_at - 3600000');
+    });
+    await vi.waitFor(() => expect(alice.latest('mail')).toBeDefined());
+    const id = alice.latest('mail').item.id;
+    expect(alice.latest('mail').item.openUntil).toBeNull();
+
+    send(alice, { t: 'body', id });
+    await vi.waitFor(() => expect(alice.latest('body')).toBeDefined());
+    expect(alice.latest('body').html).toContain('123456');
+  });
+});
+
+describe('queue order', () => {
+  it('follows when people asked, not when they opened the page', async () => {
+    // Alice has had the page open the longest, so she has the oldest seq.
+    const alice = await connect('alice@example.com');
+    const bob = await connect('bob@example.com');
+
+    send(bob, { t: 'request' });
+    await expectRole(bob, 'holder');
+    send(alice, { t: 'request' });
+    await expectRole(alice, 'queued');
+    expect(role(bob)).toBe('holder');
+  });
+
+  it('sends someone who releases and asks again to the back', async () => {
+    const alice = await connect('alice@example.com');
+    const bob = await connect('bob@example.com');
+    const carol = await connect('carol@example.com');
+
+    send(alice, { t: 'request' });
+    await expectRole(alice, 'holder');
+    send(bob, { t: 'request' });
+    await expectRole(bob, 'queued');
+    send(carol, { t: 'request' });
+    await vi.waitFor(() => expect(carol.latest('state').you.position).toBe(2));
+
+    send(bob, { t: 'release' });
+    await expectRole(bob, 'idle');
+    send(bob, { t: 'request' });
+    await vi.waitFor(() => expect(bob.latest('state').you.position).toBe(2));
+    expect(carol.latest('state').you.position).toBe(1);
+  });
+});
+
+describe('admin removal', () => {
+  it('signs the removed user out and hands the box on', async () => {
+    const alice = await connect('alice@example.com');
+    const bob = await connect('bob@example.com');
+    send(alice, { t: 'request' });
+    await expectRole(alice, 'holder');
+    send(bob, { t: 'request' });
+    await expectRole(bob, 'queued');
+
+    await box().revoke('alice@example.com');
+
+    await vi.waitFor(() => expect(alice.latest('bye')?.reason).toBe('revoked'));
+    await expectRole(bob, 'holder');
+    expect(bob.latest('state').people.map((p: any) => p.email)).not.toContain('alice@example.com');
+  });
+
+  it('refuses tokens issued before the removal, and admits later ones', async () => {
+    const before = Date.now() - 1_000;
+    expect(await box().admitted('carol@example.com', before)).toBe(true);
+
+    await box().revoke('carol@example.com');
+    expect(await box().admitted('carol@example.com', before)).toBe(false);
+    // Re-added by hand in the dashboard, then logged in again.
+    expect(await box().admitted('carol@example.com', Date.now() + 1_000)).toBe(true);
+    // Nobody else is affected.
+    expect(await box().admitted('dave@example.com', before)).toBe(true);
+  });
+
+  it('forgets the removal when the user is added back', async () => {
+    const before = Date.now() - 1_000;
+    await box().revoke('carol@example.com');
+    await box().unrevoke('carol@example.com');
+    expect(await box().admitted('carol@example.com', before)).toBe(true);
+  });
+
+  it('closes a lingering socket on its next frame', async () => {
+    const carol = await connect('carol@example.com');
+    // Simulate revoke() having missed this socket.
+    await inBox(async (instance) => {
+      instance.revoked['carol@example.com'] = Date.now();
+    });
+    send(carol, { t: 'archive' });
+    await vi.waitFor(() => expect(carol.latest('bye')?.reason).toBe('revoked'));
+    expect(carol.latest('archive')).toBeUndefined();
   });
 });

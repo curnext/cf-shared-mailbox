@@ -3,6 +3,7 @@
 # real addresses of everyone allowed to send. Copy the template instead:
 #
 #   cp wrangler.toml.example wrangler.toml
+wrangler.admin.toml
 #
 wrangler.toml
 

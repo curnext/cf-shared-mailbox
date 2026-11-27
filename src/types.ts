@@ -12,6 +12,8 @@ export interface Identity {
   email: string;
   /** JWT `exp`, in milliseconds. */
   expMs: number;
+  /** JWT `iat`, in milliseconds. Compared against admin revocations. */
+  iatMs: number;
 }
 
 /** Persisted under the `participants` key, one entry per email. */
@@ -56,7 +58,7 @@ export interface IncomingMail {
   to: string;
   subject: string;
   subjectMasked: string;
-  text: string;
+  /** Sanitised. Plain-text-only mail arrives here already converted. */
   html: string;
   authPass: boolean;
 }
@@ -71,7 +73,6 @@ export interface MessageRow {
   to_addr: string;
   subject: string;
   subject_masked: string;
-  body_text: string;
   body_html: string;
   /** Immutable once written. NULL means nobody held the box when it arrived. */
   owner: string | null;
@@ -103,8 +104,10 @@ export interface Item {
   masked: boolean;
   owner: string | null;
   mine: boolean;
-  /** Yours, or unowned. The single gate on subject and body. */
+  /** Yours, or unowned and still inside the public window. The single gate on subject and body. */
   readable: boolean;
+  /** Unowned mail only: when it locks for everyone. Null when owned. */
+  openUntil: number | null;
   authPass: boolean;
 }
 

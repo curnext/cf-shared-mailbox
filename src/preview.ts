@@ -13,7 +13,7 @@
  * states all become reachable without a second machine.
  */
 
-import { htmlToText, mask, sanitiseHtml, truncate } from './mail';
+import { mask, sanitiseHtml, textToHtml } from './mail';
 import UI from './ui.html';
 import type { Env, IncomingMail } from './types';
 
@@ -28,7 +28,8 @@ interface Sample {
   fromName: string;
   subject: string;
   html: string;
-  text: string;
+  /** Only for the text-only sample; the rest are HTML. */
+  text?: string;
   authPass: boolean;
 }
 
@@ -46,7 +47,6 @@ const SAMPLES: Record<string, Sample> = {
       '<p>It expires in 15 minutes. If you did not request it, ignore this email.</p>' +
       '<img src="https://track.example/pixel.gif" width="1" height="1">' +
       '</div>',
-    text: 'Hi,\n\nYour verification code is:\n\n    123456\n\nIt expires in 15 minutes.\n\n\n\n\nIf you did not request it, ignore this email.\nhttps://netflix.com/account/security   ',
     authPass: true,
   },
   link: {
@@ -57,7 +57,6 @@ const SAMPLES: Record<string, Sample> = {
     html:
       '<div style="font-family:sans-serif"><p>Tap below to finish signing in.</p>' +
       '<p><a href="https://accounts.spotify.com/verify?token=9f3a2b7c">Sign in to Spotify</a></p></div>',
-    text: 'Tap the link below to finish signing in.\n\nhttps://accounts.spotify.com/verify?token=9f3a2b7c\n\nThe link is good for 10 minutes. Questions? See https://support.spotify.com.',
     authPass: true,
   },
   spoof: {
@@ -66,7 +65,6 @@ const SAMPLES: Record<string, Sample> = {
     fromName: 'Netflix Security',
     subject: 'Urgent: confirm your account 998877',
     html: '<p style="font-family:sans-serif">Confirm your account immediately.</p>',
-    text: 'Confirm your account immediately.\n\nhttps://netflix-account-verify.example/confirm',
     authPass: false,
   },
   plain: {
@@ -142,15 +140,13 @@ export default {
       const sample = SAMPLES[url.searchParams.get('kind') ?? 'code'];
       if (!sample) return new Response('unknown kind', { status: 400 });
 
-      const text = sample.text || htmlToText(sample.html);
       const mail: IncomingMail = {
         from: sample.from,
         fromName: sample.fromName,
         to: 'codes@example.com',
         subject: sample.subject,
         subjectMasked: mask(sample.subject),
-        text: truncate(text),
-        html: await sanitiseHtml(sample.html),
+        html: await sanitiseHtml(sample.html || textToHtml(sample.text ?? '')),
         authPass: sample.authPass,
       };
       await stub(env).deliver(mail);

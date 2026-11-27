@@ -15,8 +15,10 @@ import {
   HANDOFF_GRACE_MS,
   PING,
   PONG,
+  PUBLIC_WINDOW_MS,
   QUEUE_PRESSURE_MS,
   RECONNECT_GRACE_MS,
+  REVOCATION_TTL_MS,
   RING_CAPACITY,
   SCHEMA_VERSION,
 } from './constants';
@@ -43,6 +45,19 @@ interface Member {
 const EMPTY_LOCK: LockLedger = { holder: null, acquiredAt: 0, prev: null };
 
 /**
+ * The single rule for who may see a message's subject and body. Yours always;
+ * unowned only inside its public window; anyone else's never.
+ */
+function readableBy(
+  row: Pick<MessageRow, 'owner' | 'received_at'>,
+  email: string,
+  now: number,
+): boolean {
+  if (row.owner === email) return true;
+  return row.owner === null && now < row.received_at + PUBLIC_WINDOW_MS;
+}
+
+/**
  * Everything a list row needs, and nothing a list row doesn't. `SELECT *` here
  * would drag body_html — up to 256 KB a row — through memory on every archive
  * fetch, for columns the serialiser never touches.
@@ -59,7 +74,6 @@ const CREATE_TABLE = `
     to_addr        TEXT    NOT NULL DEFAULT '',
     subject        TEXT    NOT NULL DEFAULT '',
     subject_masked TEXT    NOT NULL DEFAULT '',
-    body_text      TEXT    NOT NULL DEFAULT '',
     body_html      TEXT    NOT NULL DEFAULT '',
     owner          TEXT,
     auth_pass      INTEGER NOT NULL DEFAULT 0
@@ -70,6 +84,10 @@ export class Mailbox extends DurableObject<Env> {
   private participants: Record<string, Participant> = {};
   private lock: LockLedger = { ...EMPTY_LOCK };
   private deadline: Deadline | null = null;
+  /** email -> when an admin removed them. See revoke(). */
+  private revoked: Record<string, number> = {};
+  /** Public mail whose window closed at or before this has been re-broadcast as locked. */
+  private publicSwept = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -95,6 +113,8 @@ export class Mailbox extends DurableObject<Env> {
       this.participants = (await ctx.storage.get<Record<string, Participant>>('participants')) ?? {};
       this.lock = (await ctx.storage.get<LockLedger>('lock')) ?? { ...EMPTY_LOCK };
       this.deadline = (await ctx.storage.get<Deadline | null>('deadline')) ?? null;
+      this.revoked = (await ctx.storage.get<Record<string, number>>('revoked')) ?? {};
+      this.publicSwept = (await ctx.storage.get<number>('publicSwept')) ?? 0;
     });
   }
 
@@ -143,11 +163,24 @@ export class Mailbox extends DurableObject<Env> {
     }
 
     const { email } = attachment;
+
+    // revoke() closes these sockets itself; this covers one that lingers.
+    const revokedAt = this.revoked[email];
+    if (revokedAt !== undefined && attachment.connectedAt <= revokedAt) {
+      this.send(ws, { t: 'bye', reason: 'revoked' });
+      ws.close(1008, 'access removed');
+      return;
+    }
+
     const participant = this.participants[email];
 
     switch (frame.t) {
       case 'request': {
         if (!participant || participant.wants) return;
+        // A fresh seq puts them at the back. Keeping the one from when they
+        // first connected would rank by who opened the page first, letting an
+        // early arrival jump straight ahead of whoever holds the box.
+        participant.seq = ++this.seq;
         participant.wants = true;
         participant.wantsSince = now;
         await this.tick(now);
@@ -160,12 +193,12 @@ export class Mailbox extends DurableObject<Env> {
         return;
       }
       case 'archive': {
-        this.send(ws, { t: 'archive', items: this.archiveFor(email) });
+        this.send(ws, { t: 'archive', items: this.archiveFor(email, now) });
         return;
       }
       case 'body': {
         if (typeof frame.id !== 'number') return;
-        this.send(ws, this.bodyResponse(frame.id, email));
+        this.send(ws, this.bodyResponse(frame.id, email, now));
         return;
       }
       default:
@@ -216,6 +249,7 @@ export class Mailbox extends DurableObject<Env> {
       this.sendToUser(evicted, { t: 'evict', reason: 'timeout' });
     }
 
+    this.sweepPublic(now);
     await this.tick(now);
   }
 
@@ -271,6 +305,8 @@ export class Mailbox extends DurableObject<Env> {
     if (holder && !holder.online) {
       wakes.push(holder.participant.lastSeenAt + RECONNECT_GRACE_MS);
     }
+    const nextLock = this.nextPublicLock(now);
+    if (nextLock !== null) wakes.push(nextLock);
     await this.scheduleAlarm(wakes.length > 0 ? Math.min(...wakes) : null);
 
     await this.ctx.storage.put({
@@ -278,6 +314,7 @@ export class Mailbox extends DurableObject<Env> {
       participants: this.participants,
       lock: this.lock,
       deadline: this.deadline,
+      publicSwept: this.publicSwept,
     });
 
     this.broadcastState(now, members);
@@ -292,26 +329,108 @@ export class Mailbox extends DurableObject<Env> {
     if (current !== at) await this.ctx.storage.setAlarm(at);
   }
 
+  // ------------------------------------------------------------ public window
+
+  /** When the next still-open public message locks, if any. */
+  private nextPublicLock(now: number): number | null {
+    const row = this.ctx.storage.sql
+      .exec<{ at: number | null }>(
+        'SELECT MIN(received_at) AS at FROM messages WHERE owner IS NULL AND received_at > ?',
+        now - PUBLIC_WINDOW_MS,
+      )
+      .one();
+    return row.at === null ? null : row.at + PUBLIC_WINDOW_MS;
+  }
+
+  /**
+   * Readability is computed on every read, so the lock is already enforced the
+   * moment the window closes. This only tells open tabs, so a message on
+   * screen stops showing its subject and body without waiting for a refresh.
+   */
+  private sweepPublic(now: number): void {
+    const ids = this.ctx.storage.sql
+      .exec<{ id: number }>(
+        `SELECT id FROM messages
+          WHERE owner IS NULL AND received_at + ? > ? AND received_at + ? <= ?`,
+        PUBLIC_WINDOW_MS,
+        this.publicSwept,
+        PUBLIC_WINDOW_MS,
+        now,
+      )
+      .toArray();
+    this.publicSwept = now;
+    for (const { id } of ids) this.broadcastItem(id, now);
+  }
+
+  // ------------------------------------------------------------- admin hooks
+
+  /**
+   * Called by the Worker before serving anything. Access removes someone from
+   * the policy for their *next* login only; their current session would carry
+   * on until it expires. So a removal is recorded here by time, and any token
+   * issued before it is refused.
+   *
+   * Keyed on time rather than on the email alone, so that someone re-added by
+   * hand in the Cloudflare dashboard (which never calls unrevoke) gets back in
+   * as soon as they log in again.
+   */
+  async admitted(email: string, iatMs: number): Promise<boolean> {
+    const revokedAt = this.revoked[email];
+    return revokedAt === undefined || iatMs > revokedAt;
+  }
+
+  /** Called by the admin Worker after removing `email` from the Access policy. */
+  async revoke(email: string): Promise<void> {
+    const now = Date.now();
+
+    // Access sessions last at most a month, so older entries can never match.
+    for (const [other, at] of Object.entries(this.revoked)) {
+      if (now - at > REVOCATION_TTL_MS) delete this.revoked[other];
+    }
+    this.revoked[email] = now;
+    await this.ctx.storage.put('revoked', this.revoked);
+
+    for (const ws of this.ctx.getWebSockets(`u:${email}`)) {
+      this.send(ws, { t: 'bye', reason: 'revoked' });
+      try {
+        ws.close(1008, 'access removed');
+      } catch {
+        // Already closing.
+      }
+    }
+
+    // Drops them from the roster and, if they held the box, hands it on.
+    delete this.participants[email];
+    await this.tick(now);
+  }
+
+  /** Called by the admin Worker after adding `email` to the Access policy. */
+  async unrevoke(email: string): Promise<void> {
+    if (!(email in this.revoked)) return;
+    delete this.revoked[email];
+    await this.ctx.storage.put('revoked', this.revoked);
+  }
+
   // -------------------------------------------------------------- mail intake
 
   /** Called over RPC by the Worker's email() handler. */
   async deliver(mail: IncomingMail): Promise<void> {
     const now = Date.now();
+    const owner = this.attribute(now);
 
     this.ctx.storage.sql.exec(
       `INSERT INTO messages
          (received_at, from_addr, from_name, to_addr, subject, subject_masked,
-          body_text, body_html, owner, auth_pass)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          body_html, owner, auth_pass)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       now,
       mail.from,
       mail.fromName,
       mail.to,
       mail.subject,
       mail.subjectMasked,
-      mail.text,
       mail.html,
-      this.attribute(now),
+      owner,
       mail.authPass ? 1 : 0,
     );
 
@@ -328,7 +447,15 @@ export class Mailbox extends DurableObject<Env> {
     const inserted = this.ctx.storage.sql
       .exec<{ id: number }>('SELECT MAX(id) AS id FROM messages')
       .one();
-    this.broadcastItem(inserted.id);
+    this.broadcastItem(inserted.id, now);
+
+    // Public mail needs a wake-up for when its window closes. Only ever pulls
+    // the alarm earlier; the next tick recomputes every wake from scratch.
+    if (owner === null) {
+      const lockAt = now + PUBLIC_WINDOW_MS;
+      const current = await this.ctx.storage.getAlarm();
+      if (current === null || current > lockAt) await this.ctx.storage.setAlarm(lockAt);
+    }
   }
 
   /**
@@ -338,7 +465,7 @@ export class Mailbox extends DurableObject<Env> {
    * short window the outgoing holder keeps the credit.
    *
    * Returns null when nobody was holding the box — which makes the message
-   * readable by everyone, since there is no one to protect it from.
+   * readable by everyone for PUBLIC_WINDOW_MS, then by no one.
    */
   private attribute(now: number): string | null {
     if (this.lock.prev && now - this.lock.prev.releasedAt < HANDOFF_GRACE_MS) {
@@ -354,29 +481,23 @@ export class Mailbox extends DurableObject<Env> {
    * explicit request, checked against `owner` at that moment — so there is one
    * place to get right, and nothing for a later refactor to leak.
    */
-  private bodyResponse(id: number, email: string): Record<string, unknown> {
+  private bodyResponse(id: number, email: string, now: number): Record<string, unknown> {
     const row = this.ctx.storage.sql
-      .exec<Pick<MessageRow, 'owner' | 'body_text' | 'body_html'>>(
-        'SELECT owner, body_text, body_html FROM messages WHERE id = ?',
+      .exec<Pick<MessageRow, 'owner' | 'received_at' | 'body_html'>>(
+        'SELECT owner, received_at, body_html FROM messages WHERE id = ?',
         id,
       )
       .toArray()[0];
 
-    if (!row || !(row.owner === null || row.owner === email)) {
+    if (!row || !readableBy(row, email, now)) {
       return { t: 'body', id, denied: true };
     }
-    return {
-      t: 'body',
-      id,
-      text: row.body_text,
-      html: row.body_html,
-    };
+    return { t: 'body', id, html: row.body_html };
   }
 
-  private itemFor(row: MetaRow, email: string): Item {
+  private itemFor(row: MetaRow, email: string, now: number): Item {
     const mine = row.owner === email;
-    // Unowned mail is masked for nobody — there is no owner to protect it from.
-    const readable = mine || row.owner === null;
+    const readable = readableBy(row, email, now);
     return {
       id: row.id,
       at: row.received_at,
@@ -388,17 +509,18 @@ export class Mailbox extends DurableObject<Env> {
       owner: row.owner,
       mine,
       readable,
+      openUntil: row.owner === null ? row.received_at + PUBLIC_WINDOW_MS : null,
       authPass: row.auth_pass === 1,
     };
   }
 
-  private archiveFor(email: string): Item[] {
+  private archiveFor(email: string, now: number): Item[] {
     return this.ctx.storage.sql
       .exec<MetaRow>(
         `SELECT ${META_COLUMNS} FROM messages ORDER BY received_at DESC, id DESC`,
       )
       .toArray()
-      .map((row) => this.itemFor(row, email));
+      .map((row) => this.itemFor(row, email, now));
   }
 
   /** Everyone with the page open, holder first, then the queue, then the idle. */
@@ -449,7 +571,7 @@ export class Mailbox extends DurableObject<Env> {
   }
 
   /** Per-recipient because ownership differs. `mail` doubles as an upsert. */
-  private broadcastItem(id: number): void {
+  private broadcastItem(id: number, now: number): void {
     const row = this.ctx.storage.sql
       .exec<MetaRow>(`SELECT ${META_COLUMNS} FROM messages WHERE id = ?`, id)
       .toArray()[0];
@@ -458,7 +580,7 @@ export class Mailbox extends DurableObject<Env> {
     for (const ws of this.ctx.getWebSockets()) {
       const attachment = this.attachment(ws);
       if (!attachment) continue;
-      this.send(ws, { t: 'mail', item: this.itemFor(row, attachment.email) });
+      this.send(ws, { t: 'mail', item: this.itemFor(row, attachment.email, now) });
     }
   }
 

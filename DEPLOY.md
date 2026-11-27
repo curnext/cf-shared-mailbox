@@ -417,12 +417,63 @@ failed JWT verifications — both are the fastest way to see what's happening.
 
 ### Step 10 — add and remove people
 
-Zero Trust → Access → Applications → your app → **Policies** → edit the Emails
-list. Changes take effect on their next login; existing sessions last until the
-session duration expires.
+Either use the admin page (Step 11), or edit the list by hand: Zero Trust →
+Access → Applications → your app → **Policies** → edit the Emails list. A
+hand-made removal takes effect on their next login; existing sessions last
+until the session duration expires. A removal made on the admin page signs
+them out immediately.
 
 This list is the actual security boundary of the whole system. Nothing in the
 app defends against someone who is on it.
+
+### Step 11 — the admin page (optional)
+
+A second Worker, `cf-mailbox-admin`, on its own hostname. Admins listed in its
+config can see who has access, add people and remove them. It edits the plain
+email rules of the mailbox's Access policy through the Cloudflare API, and
+leaves every other rule and setting in that policy untouched.
+
+It is a separate Worker so that the API token is never in the same place as the
+code that parses mail from strangers. It bundles no npm packages.
+
+1. **Make the mailbox's policy reusable.** Zero Trust → Access → Policies. If
+   your app's policy is not listed there, create a reusable policy with the same
+   emails and attach it to the app instead. Note its ID.
+2. **Create the API token.** My Profile → API Tokens → Create Token → Custom.
+   - Permissions: *Account* → **Access: Apps and Policies** → **Edit**.
+   - Account Resources: *Include* → your account.
+   - Set an expiry. Leave IP filtering empty: Workers do not send requests
+     from fixed IP addresses.
+
+   This token can edit every Access app and policy in the account. The Worker
+   only ever touches the one policy ID in its config, but treat the token as
+   being that powerful.
+3. **Create an Access application for the admin hostname** (as in Step 5), with
+   a policy that includes **only the admin emails**. Do not attach the mailbox's
+   policy to it. Note its AUD tag.
+4. **Configure and deploy:**
+
+   ```bash
+   cp wrangler.admin.toml.example wrangler.admin.toml   # fill in the values
+   npx wrangler secret put CF_ACCESS_POLICY_KEY -c wrangler.admin.toml
+   npm run deploy:admin
+   ```
+
+   Deploy the mailbox Worker first: the admin Worker binds to its Durable Object.
+
+**What a removal does.** The email is taken out of the policy, so Access refuses
+their next login. Then the mailbox records the time of removal and refuses any
+Access token issued before it. Their open tabs show "access removed" and stop
+reconnecting, and if they held the box it passes to the next person in the
+queue. Someone added back later, on the page or by hand in the dashboard, gets
+in again as soon as they log in again.
+
+**Guard rails.** Admins cannot be removed from the page, and the last user
+cannot be removed. Every add and remove is logged with the admin's email
+(Workers → cf-mailbox-admin → Logs).
+
+**Rotating the token.** Create the new token, run `wrangler secret put` again,
+then delete the old token. No redeploy is needed.
 
 ---
 

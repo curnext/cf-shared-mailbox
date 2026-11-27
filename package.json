@@ -5,12 +5,14 @@
   "description": "Single-holder shared email box on Cloudflare Workers, Durable Objects and Email Routing",
   "scripts": {
     "dev": "wrangler dev -c wrangler.preview.toml",
+    "preview": "wrangler dev -c wrangler.preview.toml",
     "deploy": "wrangler deploy",
+    "deploy:admin": "wrangler deploy -c wrangler.admin.toml",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && vitest run && wrangler deploy --dry-run",
-    "preview": "wrangler dev -c wrangler.preview.toml"
+    "check:admin": "wrangler deploy --dry-run -c wrangler.admin.toml"
   },
   "dependencies": {
     "postal-mime": "^2.4.4"

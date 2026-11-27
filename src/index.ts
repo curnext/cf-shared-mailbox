@@ -7,7 +7,7 @@ import PostalMime from 'postal-mime';
 
 import { authenticate } from './access';
 import { MAX_RAW_BYTES } from './constants';
-import { authPassed, htmlToText, mask, sanitiseHtml, senderAllowed, truncate } from './mail';
+import { authPassed, mask, sanitiseHtml, senderAllowed, textToHtml } from './mail';
 import UI from './ui.html';
 import type { Env, IncomingMail } from './types';
 
@@ -50,6 +50,14 @@ export default {
     const identity = await authenticate(request, env);
     if (!identity) {
       return new Response('Unauthorized', { status: 401, headers: SECURITY_HEADERS });
+    }
+
+    // An admin removal takes effect now, not when this session expires.
+    if (!(await stub(env).admitted(identity.email, identity.iatMs))) {
+      return new Response('Your access to this mailbox has been removed.', {
+        status: 403,
+        headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' },
+      });
     }
 
     if (url.pathname === '/ws') {
@@ -99,9 +107,7 @@ export default {
     const parsed = await PostalMime.parse(raw);
 
     const subject = parsed.subject ?? '(no subject)';
-    const html = parsed.html ?? '';
-    const text = parsed.text?.trim() || htmlToText(html);
-    const safeHtml = await sanitiseHtml(html);
+    const safeHtml = await sanitiseHtml(parsed.html?.trim() ? parsed.html : textToHtml(parsed.text ?? ''));
 
     const mail: IncomingMail = {
       from: parsed.from?.address?.toLowerCase() || headerFrom || envelopeFrom,
@@ -109,7 +115,6 @@ export default {
       to: message.to,
       subject,
       subjectMasked: mask(subject),
-      text: truncate(text),
       html: safeHtml,
       authPass: authPassed(message.headers),
     };

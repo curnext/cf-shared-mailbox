@@ -540,9 +540,8 @@ const liveEmails = new Set(
   from_name      TEXT    NOT NULL DEFAULT '',   <i>// display name, if the sender set one</i>
   subject        TEXT    NOT NULL DEFAULT '',   <i>// raw — owner only</i>
   subject_masked TEXT    NOT NULL DEFAULT '',   <i>// §08 — everyone else</i>
-  body_text      TEXT    NOT NULL DEFAULT '',   <i>// plaintext, truncated</i>
-  body_html      TEXT    NOT NULL DEFAULT '',   <i>// sanitised, remote resources gone</i>
-  owner          TEXT,                          <i>// immutable; NULL = shared with everyone</i>
+  body_html      TEXT    NOT NULL DEFAULT '',   <i>// sanitised, remote resources gone; text-only mail converted</i>
+  owner          TEXT,                          <i>// immutable; NULL = shared with everyone for 10 min</i>
   auth_pass      INTEGER NOT NULL DEFAULT 0     <i>// SPF/DKIM/DMARC all passed</i>
 );
 CREATE INDEX IF NOT EXISTS idx_messages_at ON messages(received_at DESC);</code></pre>
@@ -563,8 +562,9 @@ WHERE id NOT IN (SELECT id FROM messages ORDER BY id DESC LIMIT 100);</code></pr
           <tr><td><code>WARN_AT_MS</code></td><td class="num">30 000</td><td>Remaining time at which the holder's UI warns them.</td></tr>
           <tr><td><code>RECONNECT_GRACE_MS</code></td><td class="num">30 000</td><td>How long a participant with zero sockets keeps their queue position. Makes a page refresh free.</td></tr>
           <tr><td><code>HANDOFF_GRACE_MS</code></td><td class="num">30 000</td><td>Window after a handover in which arriving mail is credited to the outgoing holder (§07).</td></tr>
+          <tr><td><code>PUBLIC_WINDOW_MS</code></td><td class="num">600 000</td><td>How long unowned mail stays readable by everyone. After it, nobody can read it.</td></tr>
           <tr><td><code>RING_CAPACITY</code></td><td class="num">100</td><td>Messages retained. The archive is the ring buffer.</td></tr>
-          <tr><td><code>BODY_MAX_BYTES</code></td><td class="num">8 192</td><td>Plaintext kept per message.</td></tr>
+          <tr><td><code>BODY_MAX_BYTES</code></td><td class="num">8 192</td><td>Plain text converted per message, for mail with no HTML part.</td></tr>
           <tr><td><code>HTML_MAX_BYTES</code></td><td class="num">262 144</td><td>Sanitised HTML kept per message. 100 × 256 KB is ~25 MB worst case.</td></tr>
         </tbody>
       </table>
@@ -615,7 +615,7 @@ setAlarm(min(deadline?.expiresAt, graceExpiryOfAbsentHolder))</code></pre>
         <thead><tr><th>Event</th><th>Action before recompute</th></tr></thead>
         <tbody>
           <tr><td>WS accept</td><td>If <code>participants[email]</code> is absent, create it with <code>seq = ++seq</code>, <code>wants = false</code>. If present, leave <code>seq</code> untouched — this is what preserves position across a refresh.</td></tr>
-          <tr><td><code>request</code></td><td><code>wants = true</code>. If this is a first-time request, the existing <code>seq</code> already fixes fair order by arrival.</td></tr>
+          <tr><td><code>request</code></td><td><code>wants = true</code>, and <code>seq = ++seq</code>, so the queue is ordered by when people asked. Keeping the <code>seq</code> from when they first connected would rank by who opened the page first, and let an early arrival jump ahead of whoever holds the box.</td></tr>
           <tr><td><code>release</code></td><td><code>wants = false</code>. Valid whether holding or queued.</td></tr>
           <tr><td><code>webSocketClose</code> / <code>webSocketError</code></td><td>If this was the participant's last socket, set <code>lastSeenAt = now</code>.</td></tr>
           <tr><td><code>alarm</code></td><td>If <code>deadline</code> has expired and <code>lock.holder === deadline.email</code>: set that participant's <code>wants = false</code>, clear <code>deadline</code>, and send them <code>{"t":"evict"}</code>.</td></tr>
@@ -623,7 +623,7 @@ setAlarm(min(deadline?.expiresAt, graceExpiryOfAbsentHolder))</code></pre>
       </table>
     </div>
 
-    <p>Eviction sets <code>wants = false</code> rather than moving the evicted user to the back of the queue. With two active people, auto-requeue rotates the box between them every three minutes forever, whether or not either is using it. Re-requesting is one click, and it lands them at the back because their <code>seq</code> is stale relative to whoever joined since.</p>
+    <p>Eviction sets <code>wants = false</code> rather than moving the evicted user to the back of the queue. With two active people, auto-requeue rotates the box between them every three minutes forever, whether or not either is using it. Re-requesting is one click, and it lands them at the back because requesting assigns a fresh <code>seq</code>.</p>
 
     <div class="note-box warn">
       <span class="label">Concurrency</span>
@@ -670,8 +670,9 @@ setAlarm(min(deadline?.expiresAt, graceExpiryOfAbsentHolder))</code></pre>
 
     <p>The grace window is deliberately short. It stood at 90 seconds while a claim button existed as an escape hatch; with ownership immutable there is no escape hatch, so it is sized to cover ordinary delivery lag (2&ndash;30 seconds) without stealing mail the <em>incoming</em> holder triggered themselves — which takes longer than 30 seconds to arrange.</p>
 
-    <h3>Unowned mail is shared, not hidden</h3>
+    <h3>Unowned mail is shared, for ten minutes</h3>
     <p>When <code>owner</code> is <code>NULL</code>, nobody held the box when the message arrived, so there is nobody to protect it from. It is readable in full by everyone, and its subject is not masked — masking exists to hide a code from people who are not its owner, and this message has none.</p>
+    <p>That lasts <code>PUBLIC_WINDOW_MS</code> (10 minutes) from arrival. After that it is locked for everyone: subject masked, body refused. A code nobody claimed in ten minutes is either used or stale, and leaving it open indefinitely only widens who can see it. Readability is computed on every read from <code>received_at</code>, so the lock holds the moment the window closes; an alarm at that moment re-sends the item to open tabs so the page catches up without a refresh.</p>
     <p>That also fixes a failure the earlier design had: mail arriving while nobody was watching is no longer dead weight nobody can ever read. And the rule fits in one sentence — <strong>hold the box and you own what arrives; don't, and it belongs to everyone.</strong></p>
     <p>The case it gives up is a code triggered by someone who closes their laptop before it lands. The handover grace covers the first 30 seconds of that; past it, abandoning the box means giving up the claim. Re-triggering the code is always available.</p>
 
@@ -765,15 +766,16 @@ Your Discord code: 483920
   masked: true,
   owner: "bob@example.com" | null,   <i>// null = shared</i>
   mine: false,
-  readable: false,           <i>// yours, or unowned — the single gate</i>
+  readable: false,           <i>// yours, or unowned and under 10 min old — the single gate</i>
+  openUntil: null,           <i>// unowned only: when it locks for everyone</i>
   authPass: true
 }</code></pre>
     <p>And the body, returned only to the owner:</p>
-    <pre><code>{ t: "body", id, text, html, blockedImages }   <i>// or { t: "body", id, denied: true }</i></code></pre>
+    <pre><code>{ t: "body", id, html }   <i>// or { t: "body", id, denied: true }</i></code></pre>
 
     <div class="note-box ok">
       <span class="label">One enforcement point</span>
-      <p>Lists never carry bodies. A body crosses the wire only in response to an explicit <code>{t:"body", id}</code>, checked at that moment against one condition — <code>owner === you || owner === null</code>. An unreadable body is never serialised at all, rather than being filtered out of a bulk payload, so there is one place to get right and nothing for a later refactor to leak.</p>
+      <p>Lists never carry bodies. A body crosses the wire only in response to an explicit <code>{t:"body", id}</code>, checked at that moment against one condition — <code>owner === you || (owner === null &amp;&amp; now &lt; received_at + PUBLIC_WINDOW_MS)</code>. An unreadable body is never serialised at all, rather than being filtered out of a bulk payload, so there is one place to get right and nothing for a later refactor to leak.</p>
     </div>
     <p>At 100 rows the archive needs no pagination; metadata for the whole table is a few tens of kilobytes. Build the per-recipient serialisation loop plainly and resist adding a compute-once-send-to-all fast path — with per-message ownership it would have to be unwound.</p>
   </section>
@@ -849,7 +851,7 @@ one will be yours. Or ask bob@example.com to share this one.     <i>&#9585;&#958
 •••••• is your Netflix code
 to codes@example.com
 received by bob@example.com</code></pre>
-    <p>The third line is the one that decides access, so it says so in words rather than as a status chip. It reads <code>received by you</code>, <code>received by bob@example.com</code>, or <code>received by no one · open to everyone</code> — that last clause matters, because "no one" alone would read as locked when it means the opposite.</p>
+    <p>The third line is the one that decides access, so it says so in words rather than as a status chip. It reads <code>received by you</code>, <code>received by bob@example.com</code>, or <code>received by no one · open to everyone for 7 more min</code>, or, once that window has closed, <code>received by no one · locked</code>. The clause matters, because "no one" alone would read as locked when it means the opposite.</p>
     <p>A <code>yours</code> badge sits at the right of that line when the message is yours. It duplicates the sentence, deliberately: the sentence is for reading and the badge is for scanning a list without reading any of it.</p>
   </section>
 
@@ -908,7 +910,8 @@ ALLOWED_SENDERS    = "netflix.com,spotify.com,no-reply@github.com"</code></pre>
           <tr><td>Deleting mail that arrives unowned</td><td>Destroys codes during ordinary disconnects, and the service being signed into often rate-limits the retry.</td></tr>
           <tr><td>A separate session boundary in storage</td><td>Breaks on reconnects and second tabs. The client can derive "new" from its own connect time.</td></tr>
           <tr><td>Claiming, transferring or contesting ownership</td><td>Attribution is decided once and never changes. The handover grace covers the case the claim protocol existed for, in four lines and with no UI, and unowned mail being readable by everyone removes the other reason to claim.</td></tr>
-          <tr><td>Hiding mail that nobody owns</td><td>There is no one to protect it from, and a message no one can ever read is dead weight in a hundred-row buffer.</td></tr>
+          <tr><td>Hiding mail that nobody owns, on arrival</td><td>There is no one to protect it from while it is fresh. It is hidden only after ten minutes, once it is no use to anyone.</td></tr>
+          <tr><td>A plain-text view</td><td>One way to show a body. The occasional text-only message is converted to HTML on arrival, with its links kept.</td></tr>
           <tr><td>Extracting the code from the message</td><td>Heuristics get it wrong often enough that a confidently displayed wrong code is worse than none — you copy it, it fails, and nothing tells you the app guessed. Rendering the message solves the same problem exactly.</td></tr>
           <tr><td>Loading remote images, ever</td><td>Every image in a marketing-templated email is a callback to the sender. An opt-in control was built and then removed: forwarded mail rewrites URLs often enough that it only half-worked, and "never" is both simpler and strictly more private than "not yet".</td></tr>
           <tr><td>A frontend framework</td><td>Tab badge, new-message highlighting and auto-open are a few lines each. The rendering rewrite that iframes require is needed either way, and a build step is a real cost against a project whose deploy is one command.</td></tr>
