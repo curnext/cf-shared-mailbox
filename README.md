@@ -15,9 +15,14 @@ src/
   mail.ts       Allow-list, header checks, HTML sanitising, subject masking (§07, §08)
   ui.html       The client, served as a text module
   constants.ts  Every tunable, in one place (§05)
+  admin/        Optional admin Worker, on its own hostname (DEPLOY.md, Step 11)
+    index.ts      Admin check, same-origin checks, add/remove endpoints
+    policy.ts     Reads and edits the email rules of one Access policy
+    admin.html    The admin page
 test/
   mailbox.test.ts   Lock, queue, eviction, ownership, handover, sharing, ring buffer
   mail.test.ts      Masking, allow-list, HTML sanitising
+  admin.test.ts     Admin auth, origin checks, policy edits, removal sign-out
 ```
 
 ## Setup
@@ -41,6 +46,10 @@ value in it is explained in DEPLOY.md.
 
 …with a domain in Cloudflare, an Access application on the hostname, its AUD tag
 in `wrangler.toml`, and an Email Routing rule pointing at the Worker.
+
+The admin page is a second Worker with its own config
+(`wrangler.admin.toml`, also gitignored) and the Access API token as a secret:
+`npm run deploy:admin`. See DEPLOY.md, Step 11.
 
 ## How it behaves
 
@@ -72,13 +81,13 @@ rather than silently refusing to respond.
 
 Each message names all three addresses involved on their own lines: who sent it,
 which of your addresses it landed on, and `received by` — you, another person, or
-`no one · open to everyone`.
+`no one · open to everyone` (for 10 minutes from arrival, after which it locks
+for everyone).
 
 Bodies render as HTML in a sandboxed iframe — scripts blocked, links opening in a
-new tab, remote images stripped server-side so nothing ever phones home, and a
-plain-text toggle for mail that renders badly. The plain view is monospace at
-full contrast with URLs linkified, since for verification mail it is often the
-better of the two.
+new tab, and remote images stripped server-side so nothing ever phones home.
+The occasional text-only message is converted to HTML on arrival, monospace with
+its URLs linkified.
 
 Multiple tabs from the same person count as one participant. Closing a tab, or
 losing your connection, keeps your place for 30 seconds.

@@ -1,0 +1,56 @@
+# Admin Worker. Copy this to wrangler.admin.toml and fill in the marked values.
+#
+#   cp wrangler.admin.toml.example wrangler.admin.toml
+#   npx wrangler secret put CF_ACCESS_POLICY_KEY -c wrangler.admin.toml
+#   npm run deploy:admin
+#
+# A separate Worker from the mailbox on purpose: the Access API token lives
+# only here, in a Worker that never parses inbound mail and bundles no npm
+# packages. Deploy the mailbox Worker first; this one binds to its Durable
+# Object. Walkthrough: DEPLOY.md, "Admin page".
+
+name = "cf-mailbox-admin"
+main = "src/admin/index.ts"
+compatibility_date = "2026-08-01"
+
+# Load-bearing, exactly as for the mailbox: a *.workers.dev route is a second
+# hostname that the admin Access application does not cover.
+workers_dev = false
+
+rules = [
+  { type = "Text", globs = ["**/*.html"], fallthrough = true }
+]
+
+# The mailbox Worker's Durable Object, used to sign removed users out at once.
+# No [[migrations]] here: the class belongs to the other Worker.
+[[durable_objects.bindings]]
+name = "MAILBOX"
+class_name = "Mailbox"
+script_name = "cf-mailbox"
+
+[vars]
+# ---------------------------------------------------------------------- FILL IN
+# Same team domain as the mailbox.
+ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
+
+# The AUD tag of the *admin* Access application, not the mailbox one.
+ACCESS_AUD = "REPLACE_WITH_ADMIN_APPLICATION_AUDIENCE_TAG"
+
+# Comma-separated. Must also be the only people in the admin Access app's policy.
+ADMIN_EMAILS = "you@example.com"
+
+# Dashboard > any domain > Overview > Account ID.
+CF_ACCOUNT_ID = "REPLACE_WITH_ACCOUNT_ID"
+
+# The reusable Access policy attached to the mailbox application. Its plain
+# email rules are what this page edits; anything else in it is left alone.
+ACCESS_POLICY_ID = "REPLACE_WITH_POLICY_ID"
+
+# CF_ACCESS_POLICY_KEY is a secret. Never put it in this file.
+
+[[routes]]
+pattern = "mailbox-admin.example.com"
+custom_domain = true
+
+[observability.logs]
+enabled = true

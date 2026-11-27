@@ -1,4 +1,4 @@
-/** §07 and §08 — sender allow-list, header checks, text extraction, masking. */
+/** §07 and §08 — sender allow-list, header checks, masking, HTML sanitising. */
 
 import { BODY_MAX_BYTES, HTML_MAX_BYTES } from './constants';
 
@@ -49,29 +49,48 @@ export function authPassed(headers: Headers): boolean {
   );
 }
 
-export function htmlToText(html: string): string {
-  return html
-    .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|tr|li|h[1-6]|table)>/gi, '\n')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0?39;|&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n)))
-    .replace(/[ \t ]+/g, ' ')
-    .replace(/ *\n */g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
 /** Real OTP mail is routinely 100 KB+ of HTML. Keep only the readable part. */
 export function truncate(text: string, limit = BODY_MAX_BYTES): string {
   if (text.length <= limit) return text;
   return `${text.slice(0, limit)}\n\n[truncated]`;
+}
+
+const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => ESCAPES[c]);
+
+// Matched against the raw text, and every piece is escaped on the way out.
+// A URL can never contain a quote or angle bracket, and only http(s) matches,
+// so javascript: and data: are never linked.
+const URL_RE = /https?:\/\/[^\s<>"'`]+/g;
+const TRAILING_PUNCT = /[.,;:!?)\]}]+$/;
+
+/**
+ * For the occasional text-only message, so the client has a single way to
+ * show a body. Escaped, with bare http(s) URLs made clickable; still passed
+ * through sanitiseHtml afterwards like any other HTML.
+ */
+export function textToHtml(text: string): string {
+  const tidy = truncate(
+    text
+      .replace(/[ \t]+$/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+  );
+  if (!tidy) return '';
+
+  let linked = '';
+  let cursor = 0;
+  for (const match of tidy.matchAll(URL_RE)) {
+    const url = match[0].replace(TRAILING_PUNCT, '');
+    if (!url) continue;
+    const at = match.index ?? 0;
+    const safe = escapeHtml(url);
+    linked += `${escapeHtml(tidy.slice(cursor, at))}<a href="${safe}">${safe}</a>`;
+    cursor = at + url.length;
+  }
+  linked += escapeHtml(tidy.slice(cursor));
+
+  return `<div style="white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.7">${linked}</div>`;
 }
 
 /** Elements removed outright, contents and all. */

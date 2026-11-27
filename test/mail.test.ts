@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { authPassed, htmlToText, mask, sanitiseHtml, senderAllowed } from '../src/mail';
+import { authPassed, mask, sanitiseHtml, senderAllowed, textToHtml } from '../src/mail';
 
 describe('mask (§08)', () => {
   it('masks codes that appear in real subject lines', () => {
@@ -61,10 +61,26 @@ describe('authPassed', () => {
   });
 });
 
-describe('htmlToText', () => {
-  it('strips markup and collapses whitespace', () => {
-    const html = '<style>p{color:red}</style><p>Your code is <b>123456</b></p><p>Thanks</p>';
-    expect(htmlToText(html)).toBe('Your code is 123456\nThanks');
+describe('textToHtml', () => {
+  it('escapes markup in the text', () => {
+    const html = textToHtml('Code <b>123456</b> & "more"');
+    expect(html).toContain('Code &lt;b&gt;123456&lt;/b&gt; &amp; &quot;more&quot;');
+    expect(html).not.toContain('<b>');
+  });
+
+  it('links bare http(s) URLs, leaving trailing punctuation outside', () => {
+    const html = textToHtml('Visit https://x.com/verify?a=1&b=2. Or javascript:alert(1)');
+    expect(html).toContain('<a href="https://x.com/verify?a=1&amp;b=2">https://x.com/verify?a=1&amp;b=2</a>.');
+    expect(html).not.toContain('href="javascript');
+  });
+
+  it('cannot break out of an attribute', () => {
+    const html = textToHtml('https://x.com/"onmouseover="alert(1)');
+    expect(html).toContain('<a href="https://x.com/">https://x.com/</a>&quot;onmouseover');
+  });
+
+  it('returns nothing for empty text', () => {
+    expect(textToHtml('  \n ')).toBe('');
   });
 });
 

@@ -22,10 +22,20 @@ export const RECONNECT_GRACE_MS = 30_000;
  */
 export const HANDOFF_GRACE_MS = 30_000;
 
+/** How long an admin removal is remembered. Longer than any Access session. */
+export const REVOCATION_TTL_MS = 31 * 86_400_000;
+
+/**
+ * Mail that arrives while nobody holds the box is readable by everyone, but
+ * only for this long. After that it locks for everyone, owner or not: a code
+ * nobody claimed in ten minutes is either used or stale.
+ */
+export const PUBLIC_WINDOW_MS = 600_000;
+
 /** Messages retained. The archive is the ring buffer. */
 export const RING_CAPACITY = 100;
 
-/** Plaintext kept per message. */
+/** Plain text converted per message, for mail that has no HTML part. */
 export const BODY_MAX_BYTES = 8_192;
 
 /** Sanitised HTML kept per message. 100 x 256 KB is ~25 MB worst case. */
@@ -39,7 +49,7 @@ export const MAX_RAW_BYTES = 2_000_000;
  * contents are 100 disposable verification codes, so a rebuild costs nothing
  * and is simpler than migrating columns.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Edge-answered keepalive. Never reaches the Durable Object. */
 export const PING = '{"t":"ping"}';
